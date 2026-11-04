@@ -5,8 +5,33 @@
 #include <vector>
 #include <cstdio>
 #include <string>
+#include <thread>
 
 #include <atomic>
+
+static std::atomic<bool> is_compiling{false};
+static std::string console_output = "[info] ready.\n[ok] waiting for changes";
+static std::mutex console_mutex;
+
+static void compile_code_async(std::string source_code)
+{
+    is_compiling.store(true);
+    
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        console_output = "[info] compiling...\n";
+    }
+
+    // simulating compilation delay for now
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        console_output = "[ok] compilation successful.\n[info] hot-swapping plugin library...";
+    }
+
+    is_compiling.store(false);
+}
 
 // wrap shared parameters so they are thread-safe
 static std::atomic<float> volume{0.5f};
@@ -283,10 +308,19 @@ static void draw_ui()
 
     ImGui::InputTextMultiline("##code", code, sizeof code, ImVec2(-FLT_MIN, -below), ImGuiInputTextFlags_AllowTabInput);
 
-    if (ImGui::Button("Compile", ImVec2(-FLT_MIN, 0))) {}
+    if (ImGui::Button("Compile", ImVec2(-FLT_MIN, 0)))
+    {
+        if (!is_compiling.load())
+        {
+            std::thread(compile_code_async, std::string(code)).detach();
+        }
+    }
 
     ImGui::BeginChild("##console", ImVec2(-FLT_MIN, console_h), ImGuiChildFlags_Borders);
-    ImGui::TextUnformatted("Debug output goes here");
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        ImGui::TextUnformatted(console_output.c_str());
+    }
     ImGui::EndChild();
     
     ImGui::Columns(1);
