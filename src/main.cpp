@@ -6,6 +6,42 @@
 #include <cstdio>
 #include <string>
 
+struct CircularBuffer 
+{
+    size_t capacity;
+    std::vector<float> buffer;
+    std::atomic<size_t> write_pos;
+
+    CircularBuffer(size_t cap) 
+        : capacity(cap), buffer(cap, 0.0f), write_pos(0) 
+    {
+    }
+
+    void push(float sample) 
+    {
+        size_t pos = write_pos.load(std::memory_order_relaxed);
+        buffer[pos] = sample;
+        write_pos.store((pos + 1) % capacity, std::memory_order_release);
+    }
+
+    size_t read_latest(float *dest, size_t max_samples) 
+    {
+        size_t current_write = write_pos.load(std::memory_order_acquire);
+        size_t to_read = (max_samples < capacity) ? max_samples : capacity;
+
+        for (size_t i = 0; i < to_read; ++i) 
+        {
+            size_t idx = (current_write + capacity - to_read + i) % capacity;
+            dest[i] = buffer[idx];
+        }
+        
+        return to_read;
+    }
+};
+
+// declare the global circular buffer instance
+static CircularBuffer global_scope(4096);
+
 static char code[8192] =
     "// write your code here\n"
     "int add(int a, int b) {\n"
@@ -53,22 +89,25 @@ static int audio_callback(const void *inputBuffer, void *outputBuffer,
     (void) statusFlags;
     (void) userData;
  
-    if( inputBuffer == NULL )
+    if (inputBuffer == NULL)
     {
-        for( i=0; i<framesPerBuffer; i++ )
+        for (i = 0; i < framesPerBuffer; i++)
         {
-            *out++ = 0;  /* left - silent */
-            *out++ = 0;  /* right - silent */
+            float sample = 0.0f; // Silence
+            *out++ = sample;
+            *out++ = sample;
+            global_scope.push(sample); // Push to scope
         }
-        //gNumNoInputs += 1;
     }
     else
     {
-        for( i=0; i<framesPerBuffer; i++ )
+        for (i = 0; i < framesPerBuffer; i++)
         {
             float sample = *in++; /* MONO input */
-            *out++ = sample; /* left - distorted */
-            *out++ = sample;       /* right - clean */
+            *out++ = sample;      /* left */
+            *out++ = sample;      /* right */
+            
+            global_scope.push(sample); // Push live audio sample to scope
         }
     }
 
@@ -209,8 +248,14 @@ static void draw_ui()
 
     ImGui::SeparatorText("Visualizer");
 
+    // Make static so the vector persists frame-to-frame without allocating on the UI thread
     static std::vector<float> waveform_data(512, 0.0f);
-    ImGui::PlotLines("##waveform", waveform_data.data(), (int)waveform_data.size(), 0, "live output", -1.0f, 1.0f, ImVec2(-1, 100));
+    
+    // Pull the latest samples lock-free
+    size_t samples_read = global_scope.read_latest(waveform_data.data(), waveform_data.size());
+
+    // Render the live waveform
+    ImGui::PlotLines("##waveform", waveform_data.data(), (int)samples_read, 0, "live output", -1.0f, 1.0f, ImVec2(-1, 100));
 
     static std::vector<float> freq_data(256, 0.0f);
     ImGui::SeparatorText("Spectrum Analyzer (FFT)");
