@@ -7,7 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(glfw3 REQUIRED)
 
-set(IMGUI ${CMAKE_SOURCE_DIR}/extern/imgui)
+set(IMGUI ${CMAKE_SOURCE_DIR}/imgui)
 
 add_executable(veksel
     src/main.cpp

@@ -50,8 +50,8 @@ CMakeFiles/veksel.dir/src/platform.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h \
-  /Users/joekenyon/Desktop/veksel/extern/imgui/imgui.h \
-  /Users/joekenyon/Desktop/veksel/extern/imgui/imconfig.h \
+  /Users/joekenyon/Desktop/veksel/imgui/imgui.h \
+  /Users/joekenyon/Desktop/veksel/imgui/imconfig.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/float.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/float.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/float.h \
@@ -122,6 +122,6 @@ CMakeFiles/veksel.dir/src/platform.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_dev_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_mode_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_static_assert.h \
-  /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_glfw.h \
-  /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_opengl3.h \
+  /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_glfw.h \
+  /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_opengl3.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/TargetConditionals.h

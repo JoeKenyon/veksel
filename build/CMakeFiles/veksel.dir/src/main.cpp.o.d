@@ -11,8 +11,8 @@ CMakeFiles/veksel.dir/src/main.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/float.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/float.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/float.h \
-  /Users/joekenyon/Desktop/veksel/extern/imgui/imgui.h \
-  /Users/joekenyon/Desktop/veksel/extern/imgui/imconfig.h \
+  /Users/joekenyon/Desktop/veksel/imgui/imgui.h \
+  /Users/joekenyon/Desktop/veksel/imgui/imconfig.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg_header_macro.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg___gnuc_va_list.h \

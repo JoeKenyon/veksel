@@ -100,112 +100,112 @@ CMakeFiles/veksel.dir/src/platform.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/src/platform.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/src/platform.cpp -o CMakeFiles/veksel.dir/src/platform.cpp.s
 
-CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o: CMakeFiles/veksel.dir/flags.make
-CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o: /Users/joekenyon/Desktop/veksel/extern/imgui/imgui.cpp
-CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o -MF CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o.d -o CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui.cpp
+CMakeFiles/veksel.dir/imgui/imgui.cpp.o: CMakeFiles/veksel.dir/flags.make
+CMakeFiles/veksel.dir/imgui/imgui.cpp.o: /Users/joekenyon/Desktop/veksel/imgui/imgui.cpp
+CMakeFiles/veksel.dir/imgui/imgui.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/veksel.dir/imgui/imgui.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/imgui/imgui.cpp.o -MF CMakeFiles/veksel.dir/imgui/imgui.cpp.o.d -o CMakeFiles/veksel.dir/imgui/imgui.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui.cpp
 
-CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/extern/imgui/imgui.cpp > CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.i
+CMakeFiles/veksel.dir/imgui/imgui.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/imgui/imgui.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/imgui/imgui.cpp > CMakeFiles/veksel.dir/imgui/imgui.cpp.i
 
-CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/extern/imgui/imgui.cpp -o CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.s
+CMakeFiles/veksel.dir/imgui/imgui.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/imgui/imgui.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/imgui/imgui.cpp -o CMakeFiles/veksel.dir/imgui/imgui.cpp.s
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o: CMakeFiles/veksel.dir/flags.make
-CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o: /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_draw.cpp
-CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o -MF CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o.d -o CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_draw.cpp
+CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o: CMakeFiles/veksel.dir/flags.make
+CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o: /Users/joekenyon/Desktop/veksel/imgui/imgui_draw.cpp
+CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o -MF CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o.d -o CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui_draw.cpp
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_draw.cpp > CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.i
+CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/imgui/imgui_draw.cpp > CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.i
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_draw.cpp -o CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.s
+CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/imgui/imgui_draw.cpp -o CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.s
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o: CMakeFiles/veksel.dir/flags.make
-CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o: /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_tables.cpp
-CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o -MF CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o.d -o CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_tables.cpp
+CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o: CMakeFiles/veksel.dir/flags.make
+CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o: /Users/joekenyon/Desktop/veksel/imgui/imgui_tables.cpp
+CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o -MF CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o.d -o CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui_tables.cpp
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_tables.cpp > CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.i
+CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/imgui/imgui_tables.cpp > CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.i
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_tables.cpp -o CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.s
+CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/imgui/imgui_tables.cpp -o CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.s
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o: CMakeFiles/veksel.dir/flags.make
-CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o: /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_widgets.cpp
-CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o -MF CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o.d -o CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_widgets.cpp
+CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o: CMakeFiles/veksel.dir/flags.make
+CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o: /Users/joekenyon/Desktop/veksel/imgui/imgui_widgets.cpp
+CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o -MF CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o.d -o CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui_widgets.cpp
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_widgets.cpp > CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.i
+CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/imgui/imgui_widgets.cpp > CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.i
 
-CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_widgets.cpp -o CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.s
+CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/imgui/imgui_widgets.cpp -o CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.s
 
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o: CMakeFiles/veksel.dir/flags.make
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o: /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_glfw.cpp
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o -MF CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o.d -o CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_glfw.cpp
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o: CMakeFiles/veksel.dir/flags.make
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o: /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_glfw.cpp
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o -MF CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o.d -o CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_glfw.cpp
 
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_glfw.cpp > CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.i
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_glfw.cpp > CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.i
 
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_glfw.cpp -o CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.s
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_glfw.cpp -o CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.s
 
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o: CMakeFiles/veksel.dir/flags.make
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o: /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_opengl3.cpp
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o -MF CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o.d -o CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_opengl3.cpp
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o: CMakeFiles/veksel.dir/flags.make
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o: /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_opengl3.cpp
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o: CMakeFiles/veksel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/joekenyon/Desktop/veksel/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o -MF CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o.d -o CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_opengl3.cpp
 
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_opengl3.cpp > CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.i
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_opengl3.cpp > CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.i
 
-CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_opengl3.cpp -o CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.s
+CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_opengl3.cpp -o CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.s
 
 # Object files for target veksel
 veksel_OBJECTS = \
 "CMakeFiles/veksel.dir/src/main.cpp.o" \
 "CMakeFiles/veksel.dir/src/platform.cpp.o" \
-"CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o" \
-"CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o" \
-"CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o" \
-"CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o" \
-"CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o" \
-"CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o"
+"CMakeFiles/veksel.dir/imgui/imgui.cpp.o" \
+"CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o" \
+"CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o" \
+"CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o" \
+"CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o" \
+"CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o"
 
 # External object files for target veksel
 veksel_EXTERNAL_OBJECTS =
 
 veksel: CMakeFiles/veksel.dir/src/main.cpp.o
 veksel: CMakeFiles/veksel.dir/src/platform.cpp.o
-veksel: CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o
-veksel: CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o
-veksel: CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o
-veksel: CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o
-veksel: CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o
-veksel: CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o
+veksel: CMakeFiles/veksel.dir/imgui/imgui.cpp.o
+veksel: CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o
+veksel: CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o
+veksel: CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o
+veksel: CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o
+veksel: CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o
 veksel: CMakeFiles/veksel.dir/build.make
 veksel: /opt/homebrew/lib/libglfw.3.5.dylib
 veksel: CMakeFiles/veksel.dir/link.txt

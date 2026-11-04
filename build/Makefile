@@ -129,149 +129,149 @@ veksel/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/build
 .PHONY : veksel/fast
 
-extern/imgui/backends/imgui_impl_glfw.o: extern/imgui/backends/imgui_impl_glfw.cpp.o
-.PHONY : extern/imgui/backends/imgui_impl_glfw.o
+imgui/backends/imgui_impl_glfw.o: imgui/backends/imgui_impl_glfw.cpp.o
+.PHONY : imgui/backends/imgui_impl_glfw.o
 
 # target to build an object file
-extern/imgui/backends/imgui_impl_glfw.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o
-.PHONY : extern/imgui/backends/imgui_impl_glfw.cpp.o
+imgui/backends/imgui_impl_glfw.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o
+.PHONY : imgui/backends/imgui_impl_glfw.cpp.o
 
-extern/imgui/backends/imgui_impl_glfw.i: extern/imgui/backends/imgui_impl_glfw.cpp.i
-.PHONY : extern/imgui/backends/imgui_impl_glfw.i
+imgui/backends/imgui_impl_glfw.i: imgui/backends/imgui_impl_glfw.cpp.i
+.PHONY : imgui/backends/imgui_impl_glfw.i
 
 # target to preprocess a source file
-extern/imgui/backends/imgui_impl_glfw.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.i
-.PHONY : extern/imgui/backends/imgui_impl_glfw.cpp.i
+imgui/backends/imgui_impl_glfw.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.i
+.PHONY : imgui/backends/imgui_impl_glfw.cpp.i
 
-extern/imgui/backends/imgui_impl_glfw.s: extern/imgui/backends/imgui_impl_glfw.cpp.s
-.PHONY : extern/imgui/backends/imgui_impl_glfw.s
+imgui/backends/imgui_impl_glfw.s: imgui/backends/imgui_impl_glfw.cpp.s
+.PHONY : imgui/backends/imgui_impl_glfw.s
 
 # target to generate assembly for a file
-extern/imgui/backends/imgui_impl_glfw.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.s
-.PHONY : extern/imgui/backends/imgui_impl_glfw.cpp.s
+imgui/backends/imgui_impl_glfw.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.s
+.PHONY : imgui/backends/imgui_impl_glfw.cpp.s
 
-extern/imgui/backends/imgui_impl_opengl3.o: extern/imgui/backends/imgui_impl_opengl3.cpp.o
-.PHONY : extern/imgui/backends/imgui_impl_opengl3.o
+imgui/backends/imgui_impl_opengl3.o: imgui/backends/imgui_impl_opengl3.cpp.o
+.PHONY : imgui/backends/imgui_impl_opengl3.o
 
 # target to build an object file
-extern/imgui/backends/imgui_impl_opengl3.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o
-.PHONY : extern/imgui/backends/imgui_impl_opengl3.cpp.o
+imgui/backends/imgui_impl_opengl3.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o
+.PHONY : imgui/backends/imgui_impl_opengl3.cpp.o
 
-extern/imgui/backends/imgui_impl_opengl3.i: extern/imgui/backends/imgui_impl_opengl3.cpp.i
-.PHONY : extern/imgui/backends/imgui_impl_opengl3.i
+imgui/backends/imgui_impl_opengl3.i: imgui/backends/imgui_impl_opengl3.cpp.i
+.PHONY : imgui/backends/imgui_impl_opengl3.i
 
 # target to preprocess a source file
-extern/imgui/backends/imgui_impl_opengl3.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.i
-.PHONY : extern/imgui/backends/imgui_impl_opengl3.cpp.i
+imgui/backends/imgui_impl_opengl3.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.i
+.PHONY : imgui/backends/imgui_impl_opengl3.cpp.i
 
-extern/imgui/backends/imgui_impl_opengl3.s: extern/imgui/backends/imgui_impl_opengl3.cpp.s
-.PHONY : extern/imgui/backends/imgui_impl_opengl3.s
+imgui/backends/imgui_impl_opengl3.s: imgui/backends/imgui_impl_opengl3.cpp.s
+.PHONY : imgui/backends/imgui_impl_opengl3.s
 
 # target to generate assembly for a file
-extern/imgui/backends/imgui_impl_opengl3.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.s
-.PHONY : extern/imgui/backends/imgui_impl_opengl3.cpp.s
+imgui/backends/imgui_impl_opengl3.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.s
+.PHONY : imgui/backends/imgui_impl_opengl3.cpp.s
 
-extern/imgui/imgui.o: extern/imgui/imgui.cpp.o
-.PHONY : extern/imgui/imgui.o
+imgui/imgui.o: imgui/imgui.cpp.o
+.PHONY : imgui/imgui.o
 
 # target to build an object file
-extern/imgui/imgui.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o
-.PHONY : extern/imgui/imgui.cpp.o
+imgui/imgui.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui.cpp.o
+.PHONY : imgui/imgui.cpp.o
 
-extern/imgui/imgui.i: extern/imgui/imgui.cpp.i
-.PHONY : extern/imgui/imgui.i
+imgui/imgui.i: imgui/imgui.cpp.i
+.PHONY : imgui/imgui.i
 
 # target to preprocess a source file
-extern/imgui/imgui.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.i
-.PHONY : extern/imgui/imgui.cpp.i
+imgui/imgui.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui.cpp.i
+.PHONY : imgui/imgui.cpp.i
 
-extern/imgui/imgui.s: extern/imgui/imgui.cpp.s
-.PHONY : extern/imgui/imgui.s
+imgui/imgui.s: imgui/imgui.cpp.s
+.PHONY : imgui/imgui.s
 
 # target to generate assembly for a file
-extern/imgui/imgui.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.s
-.PHONY : extern/imgui/imgui.cpp.s
+imgui/imgui.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui.cpp.s
+.PHONY : imgui/imgui.cpp.s
 
-extern/imgui/imgui_draw.o: extern/imgui/imgui_draw.cpp.o
-.PHONY : extern/imgui/imgui_draw.o
+imgui/imgui_draw.o: imgui/imgui_draw.cpp.o
+.PHONY : imgui/imgui_draw.o
 
 # target to build an object file
-extern/imgui/imgui_draw.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o
-.PHONY : extern/imgui/imgui_draw.cpp.o
+imgui/imgui_draw.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o
+.PHONY : imgui/imgui_draw.cpp.o
 
-extern/imgui/imgui_draw.i: extern/imgui/imgui_draw.cpp.i
-.PHONY : extern/imgui/imgui_draw.i
+imgui/imgui_draw.i: imgui/imgui_draw.cpp.i
+.PHONY : imgui/imgui_draw.i
 
 # target to preprocess a source file
-extern/imgui/imgui_draw.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.i
-.PHONY : extern/imgui/imgui_draw.cpp.i
+imgui/imgui_draw.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.i
+.PHONY : imgui/imgui_draw.cpp.i
 
-extern/imgui/imgui_draw.s: extern/imgui/imgui_draw.cpp.s
-.PHONY : extern/imgui/imgui_draw.s
+imgui/imgui_draw.s: imgui/imgui_draw.cpp.s
+.PHONY : imgui/imgui_draw.s
 
 # target to generate assembly for a file
-extern/imgui/imgui_draw.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.s
-.PHONY : extern/imgui/imgui_draw.cpp.s
+imgui/imgui_draw.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.s
+.PHONY : imgui/imgui_draw.cpp.s
 
-extern/imgui/imgui_tables.o: extern/imgui/imgui_tables.cpp.o
-.PHONY : extern/imgui/imgui_tables.o
+imgui/imgui_tables.o: imgui/imgui_tables.cpp.o
+.PHONY : imgui/imgui_tables.o
 
 # target to build an object file
-extern/imgui/imgui_tables.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o
-.PHONY : extern/imgui/imgui_tables.cpp.o
+imgui/imgui_tables.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o
+.PHONY : imgui/imgui_tables.cpp.o
 
-extern/imgui/imgui_tables.i: extern/imgui/imgui_tables.cpp.i
-.PHONY : extern/imgui/imgui_tables.i
+imgui/imgui_tables.i: imgui/imgui_tables.cpp.i
+.PHONY : imgui/imgui_tables.i
 
 # target to preprocess a source file
-extern/imgui/imgui_tables.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.i
-.PHONY : extern/imgui/imgui_tables.cpp.i
+imgui/imgui_tables.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.i
+.PHONY : imgui/imgui_tables.cpp.i
 
-extern/imgui/imgui_tables.s: extern/imgui/imgui_tables.cpp.s
-.PHONY : extern/imgui/imgui_tables.s
+imgui/imgui_tables.s: imgui/imgui_tables.cpp.s
+.PHONY : imgui/imgui_tables.s
 
 # target to generate assembly for a file
-extern/imgui/imgui_tables.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.s
-.PHONY : extern/imgui/imgui_tables.cpp.s
+imgui/imgui_tables.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.s
+.PHONY : imgui/imgui_tables.cpp.s
 
-extern/imgui/imgui_widgets.o: extern/imgui/imgui_widgets.cpp.o
-.PHONY : extern/imgui/imgui_widgets.o
+imgui/imgui_widgets.o: imgui/imgui_widgets.cpp.o
+.PHONY : imgui/imgui_widgets.o
 
 # target to build an object file
-extern/imgui/imgui_widgets.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o
-.PHONY : extern/imgui/imgui_widgets.cpp.o
+imgui/imgui_widgets.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o
+.PHONY : imgui/imgui_widgets.cpp.o
 
-extern/imgui/imgui_widgets.i: extern/imgui/imgui_widgets.cpp.i
-.PHONY : extern/imgui/imgui_widgets.i
+imgui/imgui_widgets.i: imgui/imgui_widgets.cpp.i
+.PHONY : imgui/imgui_widgets.i
 
 # target to preprocess a source file
-extern/imgui/imgui_widgets.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.i
-.PHONY : extern/imgui/imgui_widgets.cpp.i
+imgui/imgui_widgets.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.i
+.PHONY : imgui/imgui_widgets.cpp.i
 
-extern/imgui/imgui_widgets.s: extern/imgui/imgui_widgets.cpp.s
-.PHONY : extern/imgui/imgui_widgets.s
+imgui/imgui_widgets.s: imgui/imgui_widgets.cpp.s
+.PHONY : imgui/imgui_widgets.s
 
 # target to generate assembly for a file
-extern/imgui/imgui_widgets.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.s
-.PHONY : extern/imgui/imgui_widgets.cpp.s
+imgui/imgui_widgets.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/veksel.dir/build.make CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.s
+.PHONY : imgui/imgui_widgets.cpp.s
 
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
@@ -330,24 +330,24 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... veksel"
-	@echo "... extern/imgui/backends/imgui_impl_glfw.o"
-	@echo "... extern/imgui/backends/imgui_impl_glfw.i"
-	@echo "... extern/imgui/backends/imgui_impl_glfw.s"
-	@echo "... extern/imgui/backends/imgui_impl_opengl3.o"
-	@echo "... extern/imgui/backends/imgui_impl_opengl3.i"
-	@echo "... extern/imgui/backends/imgui_impl_opengl3.s"
-	@echo "... extern/imgui/imgui.o"
-	@echo "... extern/imgui/imgui.i"
-	@echo "... extern/imgui/imgui.s"
-	@echo "... extern/imgui/imgui_draw.o"
-	@echo "... extern/imgui/imgui_draw.i"
-	@echo "... extern/imgui/imgui_draw.s"
-	@echo "... extern/imgui/imgui_tables.o"
-	@echo "... extern/imgui/imgui_tables.i"
-	@echo "... extern/imgui/imgui_tables.s"
-	@echo "... extern/imgui/imgui_widgets.o"
-	@echo "... extern/imgui/imgui_widgets.i"
-	@echo "... extern/imgui/imgui_widgets.s"
+	@echo "... imgui/backends/imgui_impl_glfw.o"
+	@echo "... imgui/backends/imgui_impl_glfw.i"
+	@echo "... imgui/backends/imgui_impl_glfw.s"
+	@echo "... imgui/backends/imgui_impl_opengl3.o"
+	@echo "... imgui/backends/imgui_impl_opengl3.i"
+	@echo "... imgui/backends/imgui_impl_opengl3.s"
+	@echo "... imgui/imgui.o"
+	@echo "... imgui/imgui.i"
+	@echo "... imgui/imgui.s"
+	@echo "... imgui/imgui_draw.o"
+	@echo "... imgui/imgui_draw.i"
+	@echo "... imgui/imgui_draw.s"
+	@echo "... imgui/imgui_tables.o"
+	@echo "... imgui/imgui_tables.i"
+	@echo "... imgui/imgui_tables.s"
+	@echo "... imgui/imgui_widgets.o"
+	@echo "... imgui/imgui_widgets.i"
+	@echo "... imgui/imgui_widgets.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

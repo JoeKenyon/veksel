@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DGL_SILENCE_DEPRECATION
 
-CXX_INCLUDES = -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include
+CXX_INCLUDES = -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include
 
 CXX_FLAGSarm64 = -O3 -DNDEBUG -std=gnu++17 -arch arm64
 

@@ -1,50 +1,50 @@
 [
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/src/main.cpp.o -c /Users/joekenyon/Desktop/veksel/src/main.cpp",
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/src/main.cpp.o -c /Users/joekenyon/Desktop/veksel/src/main.cpp",
   "file": "/Users/joekenyon/Desktop/veksel/src/main.cpp",
   "output": "CMakeFiles/veksel.dir/src/main.cpp.o"
 },
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/src/platform.cpp.o -c /Users/joekenyon/Desktop/veksel/src/platform.cpp",
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/src/platform.cpp.o -c /Users/joekenyon/Desktop/veksel/src/platform.cpp",
   "file": "/Users/joekenyon/Desktop/veksel/src/platform.cpp",
   "output": "CMakeFiles/veksel.dir/src/platform.cpp.o"
 },
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui.cpp",
-  "file": "/Users/joekenyon/Desktop/veksel/extern/imgui/imgui.cpp",
-  "output": "CMakeFiles/veksel.dir/extern/imgui/imgui.cpp.o"
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/imgui/imgui.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui.cpp",
+  "file": "/Users/joekenyon/Desktop/veksel/imgui/imgui.cpp",
+  "output": "CMakeFiles/veksel.dir/imgui/imgui.cpp.o"
 },
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_draw.cpp",
-  "file": "/Users/joekenyon/Desktop/veksel/extern/imgui/imgui_draw.cpp",
-  "output": "CMakeFiles/veksel.dir/extern/imgui/imgui_draw.cpp.o"
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui_draw.cpp",
+  "file": "/Users/joekenyon/Desktop/veksel/imgui/imgui_draw.cpp",
+  "output": "CMakeFiles/veksel.dir/imgui/imgui_draw.cpp.o"
 },
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_tables.cpp",
-  "file": "/Users/joekenyon/Desktop/veksel/extern/imgui/imgui_tables.cpp",
-  "output": "CMakeFiles/veksel.dir/extern/imgui/imgui_tables.cpp.o"
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui_tables.cpp",
+  "file": "/Users/joekenyon/Desktop/veksel/imgui/imgui_tables.cpp",
+  "output": "CMakeFiles/veksel.dir/imgui/imgui_tables.cpp.o"
 },
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/imgui_widgets.cpp",
-  "file": "/Users/joekenyon/Desktop/veksel/extern/imgui/imgui_widgets.cpp",
-  "output": "CMakeFiles/veksel.dir/extern/imgui/imgui_widgets.cpp.o"
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/imgui_widgets.cpp",
+  "file": "/Users/joekenyon/Desktop/veksel/imgui/imgui_widgets.cpp",
+  "output": "CMakeFiles/veksel.dir/imgui/imgui_widgets.cpp.o"
 },
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_glfw.cpp",
-  "file": "/Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_glfw.cpp",
-  "output": "CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_glfw.cpp.o"
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_glfw.cpp",
+  "file": "/Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_glfw.cpp",
+  "output": "CMakeFiles/veksel.dir/imgui/backends/imgui_impl_glfw.cpp.o"
 },
 {
   "directory": "/Users/joekenyon/Desktop/veksel/build",
-  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/extern/imgui -I/Users/joekenyon/Desktop/veksel/extern/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o -c /Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_opengl3.cpp",
-  "file": "/Users/joekenyon/Desktop/veksel/extern/imgui/backends/imgui_impl_opengl3.cpp",
-  "output": "CMakeFiles/veksel.dir/extern/imgui/backends/imgui_impl_opengl3.cpp.o"
+  "command": "/usr/bin/c++ -DGL_SILENCE_DEPRECATION -I/Users/joekenyon/Desktop/veksel/imgui -I/Users/joekenyon/Desktop/veksel/imgui/backends -isystem /opt/homebrew/include -O3 -DNDEBUG -std=gnu++17 -arch arm64 -o CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o -c /Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_opengl3.cpp",
+  "file": "/Users/joekenyon/Desktop/veksel/imgui/backends/imgui_impl_opengl3.cpp",
+  "output": "CMakeFiles/veksel.dir/imgui/backends/imgui_impl_opengl3.cpp.o"
 }
 ]
