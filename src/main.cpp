@@ -6,6 +6,9 @@
 #include <cstdio>
 #include <string>
 #include <thread>
+#include <fstream>
+#include <cstdio>
+#include <array>
 
 #include <atomic>
 
@@ -19,15 +22,57 @@ static void compile_code_async(std::string source_code)
     
     {
         std::lock_guard<std::mutex> lock(console_mutex);
-        console_output = "[info] compiling...\n";
+        console_output = "[info] writing temporary source file...\n";
     }
 
-    // simulating compilation delay for now
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    // write the code snapshot to disk
+    std::ofstream out_file("user_plugin.cpp");
+    if (!out_file.is_open())
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        console_output = "[error] failed to write user_plugin.cpp";
+        is_compiling.store(false);
+        return;
+    }
+    
+    out_file << source_code;
+    out_file.close();
 
     {
         std::lock_guard<std::mutex> lock(console_mutex);
-        console_output = "[ok] compilation successful.\n[info] hot-swapping plugin library...";
+        console_output = "[info] running clang++ compiler...\n";
+    }
+
+    // build command
+    std::string cmd = "clang++ -shared -fPIC user_plugin.cpp -o user_plugin.dylib 2>&1";
+
+    // execute command and capture stdout/stderr build logs
+    std::string build_log = "";
+    FILE *pipe = popen(cmd.c_str(), "r");
+    if (pipe != nullptr)
+    {
+        std::array<char, 128> buffer;
+        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
+        {
+            build_log += buffer.data();
+        }
+        int exit_code = pclose(pipe);
+
+        std::lock_guard<std::mutex> lock(console_mutex);
+        if (exit_code == 0)
+        {
+            console_output = "[ok] compilation successful!\n[info] ready to load shared library.";
+            // TODO: call dlopen() or LoadLibrary() here to load the new symbols
+        }
+        else
+        {
+            console_output = "[error] compilation failed:\n" + build_log;
+        }
+    }
+    else
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        console_output = "[error] failed to launch compiler process.";
     }
 
     is_compiling.store(false);
