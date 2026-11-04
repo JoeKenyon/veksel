@@ -1,7 +1,12 @@
 #include <cfloat>
 #include "imgui.h"
 #include "platform.h"
+#include "portaudio.h"
+#include "fft.h"
+#include "audio.h"
 #include <cmath>
+#include <iostream>
+#include <vector>
 
 static char code[8192] =
     "// write your code here\n"
@@ -24,36 +29,62 @@ static float param3 = 0.5f;
 static float param4 = 0.5f;
 static float param5 = 0.5f;
 
+static AudioEngine audio;
+
 static void draw_ui()
 {
+    float freq = audio.load_frequency();
+    float vol = audio.load_volume();
+
+    // make static so it persists between frames and doesn't re-allocate
+    static std::vector<float> plot_data(512, 0.0f);
+
     ImGui::Columns(2, "main", true);
 
+    // --- LEFT COLUMN: Controls & Visualizer ---
     ImGui::Text("%s", banner);
 
-    // number of frequency bins to show on screen
-    const int num_bins = 64;
-    float fft_bins[num_bins];
-
-    float samples[100];
-    for (int n = 0; n < 100; n++)
+    if (ImGui::SliderFloat("frequency", &freq, 100.0f, 18000.0f))
     {
-        samples[n] = std::sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
+        audio.set_frequency(freq);
     }
-
-    // make up some fake frequency magnitudes that wiggle around
-    for (int n = 0; n < num_bins; n++)
+    
+    if (ImGui::SliderFloat("volume", &vol, 0.0f, 1.0f))
     {
-        float freq = (float)n / (float)num_bins;
-        float val = std::sinf(freq * 15.0f + ImGui::GetTime() * 3.0f) * 0.5f + 0.5f;
-        fft_bins[n] = val * (1.0f - freq); // roll off highs a bit
+        audio.set_volume(vol);
     }
 
     ImGui::SeparatorText("Visualizer");
 
-    ImGui::PlotLines("##wave", samples, 100, 0, nullptr, -1.0f, 1.0f, ImVec2(-FLT_MIN, 80));
-    ImGui::PlotLines("##fft", fft_bins, num_bins, 0, nullptr, 0.0f, 1.0f, ImVec2(-1.0f, 80.0f));
+    // pull latest samples from the thread-safe ring buffer
+    size_t samples_read = audio.scope_buffer.read_latest(plot_data.data(), plot_data.size());
+    
+    // render the live waveform display
+    ImGui::PlotLines("##waveform", plot_data.data(), (int)samples_read, 0, "live output", -1.0f, 1.0f, ImVec2(-1, 100));
 
-    // right side: sliders and stuff
+    // create a persistent analyzer and raw sample buffer
+    static SpectrumAnalyzer analyzer(512);
+    static std::vector<float> time_samples(512, 0.0f);
+    static std::vector<float> freq_data(256, 0.0f);
+
+    // inside draw_ui():
+    ImGui::SeparatorText("Spectrum Analyzer (FFT)");
+
+    // grab latest chunk from scope buffer
+    audio.scope_buffer.read_latest(time_samples.data(), time_samples.size());
+
+    // compute spectrum
+    analyzer.compute(time_samples.data(), 44100.0f);
+
+    // copy to render vector
+    for (size_t i = 0; i < analyzer.get_bin_count(); ++i)
+    {
+        freq_data[i] = analyzer.get_magnitudes()[i];
+    }
+
+    // plot the frequency bins
+    ImGui::PlotLines("##fft", freq_data.data(), (int)freq_data.size(), 0, "frequency spectrum", 0.0f, 1.0f, ImVec2(-1, 100));
+
     ImGui::SeparatorText("Controls");
 
     ImGui::SliderFloat("Gain"   , &gain  ,  0.0f,  1.0f);
@@ -63,7 +94,9 @@ static void draw_ui()
     ImGui::SliderFloat("Param 4", &param4,  0.0f,  1.0f);
     ImGui::SliderFloat("Param 5", &param5,  0.0f,  1.0f);
 
+    // --- RIGHT COLUMN: Editor & Console ---
     ImGui::NextColumn();
+    
     ImGui::SeparatorText("Editor");
 
     const float console_h = 140.0f;
@@ -82,10 +115,15 @@ static void draw_ui()
     ImGui::BeginChild("##console", ImVec2(-FLT_MIN, console_h), ImGuiChildFlags_Borders);
     ImGui::TextUnformatted("[info] ready.\n[ok] waiting for changes");
     ImGui::EndChild();
+    
+    // clean up columns state for the frame
+    ImGui::Columns(1);
 }
 
 int main()
 {
+    audio.init();
+
     if (!platform_init("Veksel", 1100, 650))
     {
         return 1;
@@ -98,5 +136,6 @@ int main()
     }
 
     platform_shutdown();
+    audio.shutdown();
     return 0;
 }
