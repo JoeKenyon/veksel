@@ -1,3 +1,0 @@
-/Users/joekenyon/Desktop/veksel/build/CMakeFiles/veksel.dir
-/Users/joekenyon/Desktop/veksel/build/CMakeFiles/edit_cache.dir
-/Users/joekenyon/Desktop/veksel/build/CMakeFiles/rebuild_cache.dir
