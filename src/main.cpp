@@ -6,6 +6,16 @@
 #include <cstdio>
 #include <string>
 
+#include <atomic>
+
+// wrap shared parameters so they are thread-safe
+static std::atomic<float> volume{0.5f};
+static std::atomic<float> param1{0.5f};
+static std::atomic<float> param2{0.5f};
+static std::atomic<float> param3{0.5f};
+static std::atomic<float> param4{0.5f};
+static std::atomic<float> param5{0.5f};
+
 struct CircularBuffer 
 {
     size_t capacity;
@@ -56,12 +66,7 @@ static const char *banner =
     " ╚████╔╝ ███████╗██║  ██╗███████║███████╗███████╗\n"
     "  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝";
 
-static float volume = 0.5f;
-static float param1 = 0.5f;
-static float param2 = 0.5f;
-static float param3 = 0.5f;
-static float param4 = 0.5f;
-static float param5 = 0.5f;
+
 
 struct AudioDeviceInfo
 {
@@ -104,6 +109,7 @@ static int audio_callback(const void *inputBuffer, void *outputBuffer,
         for (i = 0; i < framesPerBuffer; i++)
         {
             float sample = *in++; /* MONO input */
+            sample *= volume.load();
             *out++ = sample;      /* left */
             *out++ = sample;      /* right */
             
@@ -257,18 +263,14 @@ static void draw_ui()
     // Render the live waveform
     ImGui::PlotLines("##waveform", waveform_data.data(), (int)samples_read, 0, "live output", -1.0f, 1.0f, ImVec2(-1, 100));
 
-    static std::vector<float> freq_data(256, 0.0f);
-    ImGui::SeparatorText("Spectrum Analyzer (FFT)");
-    ImGui::PlotLines("##fft", freq_data.data(), (int)freq_data.size(), 0, "frequency spectrum", 0.0f, 1.0f, ImVec2(-1, 100));
-
     ImGui::SeparatorText("Controls");
 
-    if(ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {}
-    ImGui::SliderFloat("Param 1", &param1, 0.0f, 1.0f);
-    ImGui::SliderFloat("Param 2", &param2, 0.0f, 1.0f);
-    ImGui::SliderFloat("Param 3", &param3, 0.0f, 1.0f);
-    ImGui::SliderFloat("Param 4", &param4, 0.0f, 1.0f);
-    ImGui::SliderFloat("Param 5", &param5, 0.0f, 1.0f);
+    //  load atomics
+    float current_vol = volume.load();
+    if (ImGui::SliderFloat("Volume", &current_vol, 0.0f, 1.0f))
+    {
+        volume.store(current_vol);
+    }
 
     // --- RIGHT COLUMN: Editor & Console ---
     ImGui::NextColumn();
