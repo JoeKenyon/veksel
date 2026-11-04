@@ -4,6 +4,8 @@ A audio code playground built with C++, Dear ImGui, and GLFW/OpenGL.
 
 > *Named after **Wechsel** (German for "change")*
 
+<img src="showcase.png" style="max-height:500px"/>
+
 ## Requirements
 
 * **C++ Compiler:** Clang, GCC, or MSVC (C++17 or higher)
