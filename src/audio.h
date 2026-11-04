@@ -1,4 +1,3 @@
-// inside audio.h
 #pragma once
 #include <portaudio.h>
 #include <cmath>
@@ -43,8 +42,8 @@ struct AudioDeviceInfo
 {
     int id;
     std::string name;
-    int max_output_channels;
     int max_input_channels;
+    int max_output_channels;
 };
 
 struct AudioEngine
@@ -55,6 +54,8 @@ struct AudioEngine
     float phase = 0.0f;
     
     ScopeBuffer scope_buffer{4096};
+    
+    int selected_input_device = -1;
     int selected_output_device = -1;
 
     static int callback(const void *inputBuffer, void *outputBuffer,
@@ -64,6 +65,7 @@ struct AudioEngine
                         void *userData)
     {
         AudioEngine *engine = static_cast<AudioEngine*>(userData);
+        const float *in = static_cast<const float*>(inputBuffer);
         float *out = static_cast<float*>(outputBuffer);
         
         float freq = engine->load_frequency();
@@ -72,39 +74,56 @@ struct AudioEngine
         
         for (unsigned long i = 0; i < framesPerBuffer; ++i)
         {
-            float sample = std::sin(engine->phase * 2.0f * 3.14159265f) * vol;
-            
-            *out++ = sample;
-            *out++ = sample;
-            
-            engine->scope_buffer.push(sample);
-            
-            engine->phase += freq / sampleRate;
-            if (engine->phase >= 1.0f)
+            float sample_to_scope = 0.0f;
+            float output_sample = 0.0f;
+
+            if (in != nullptr)
             {
-                engine->phase -= 1.0f;
+                // grab channel 0 (works for both mono and stereo)
+                float left_in = *in++;
+                // if input has 2 channels, advance pointer past right channel too
+                // (or check your device channel configuration if needed)
+                sample_to_scope = left_in;
+                output_sample = left_in * vol; 
             }
+            else
+            {
+                output_sample = std::sin(engine->phase * 2.0f * 3.14159265f) * vol;
+                sample_to_scope = output_sample;
+                
+                engine->phase += freq / sampleRate;
+                if (engine->phase >= 1.0f)
+                {
+                    engine->phase -= 1.0f;
+                }
+            }
+
+            // write out (assuming stereo output speakers)
+            *out++ = output_sample;
+            *out++ = output_sample;
+
+            engine->scope_buffer.push(sample_to_scope);
         }
         
         return paContinue;
     }
 
-    std::vector<AudioDeviceInfo> get_output_devices()
+    std::vector<AudioDeviceInfo> get_devices()
     {
         std::vector<AudioDeviceInfo> devices;
         int num_devices = Pa_GetDeviceCount();
         for (int i = 0; i < num_devices; ++i)
         {
             const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
-            if (info && info->maxOutputChannels > 0)
+            if (info)
             {
-                devices.push_back({i, info->name, info->maxOutputChannels, info->maxInputChannels});
+                devices.push_back({i, info->name, info->maxInputChannels, info->maxOutputChannels});
             }
         }
         return devices;
     }
 
-    bool init(int device_id = -1)
+    bool init(int input_id = -1, int output_id = -1)
     {
         PaError err = Pa_Initialize();
         if (err != paNoError)
@@ -113,23 +132,43 @@ struct AudioEngine
             return false;
         }
 
+        PaStreamParameters inputParameters;
         PaStreamParameters outputParameters;
-        outputParameters.device = (device_id == -1) ? Pa_GetDefaultOutputDevice() : device_id;
+
+        // setup input parameters dynamically
+        inputParameters.device = (input_id == -1) ? Pa_GetDefaultInputDevice() : input_id;
+        selected_input_device = inputParameters.device;
+        
+        bool use_input = (inputParameters.device != paNoDevice);
+        if (use_input)
+        {
+            const PaDeviceInfo *inputInfo = Pa_GetDeviceInfo(inputParameters.device);
+            // use up to 2 channels, but fall back to max available if device only supports 1 (mono)
+            inputParameters.channelCount = (inputInfo && inputInfo->maxInputChannels < 2) ? inputInfo->maxInputChannels : 2;
+            inputParameters.sampleFormat = paFloat32;
+            inputParameters.suggestedLatency = inputInfo ? inputInfo->defaultLowInputLatency : 0.01;
+            inputParameters.hostApiSpecificStreamInfo = nullptr;
+        }
+
+        // setup output parameters dynamically
+        outputParameters.device = (output_id == -1) ? Pa_GetDefaultOutputDevice() : output_id;
+        selected_output_device = outputParameters.device;
+        
         if (outputParameters.device == paNoDevice)
         {
             std::cerr << "no output device found\n";
             return false;
         }
         
-        selected_output_device = outputParameters.device;
-        outputParameters.channelCount = 2;
+        const PaDeviceInfo *outputInfo = Pa_GetDeviceInfo(outputParameters.device);
+        outputParameters.channelCount = (outputInfo && outputInfo->maxOutputChannels < 2) ? outputInfo->maxOutputChannels : 2;
         outputParameters.sampleFormat = paFloat32;
-        outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
+        outputParameters.suggestedLatency = outputInfo ? outputInfo->defaultLowOutputLatency : 0.01;
         outputParameters.hostApiSpecificStreamInfo = nullptr;
 
         err = Pa_OpenStream(
             &stream,
-            nullptr,
+            use_input ? &inputParameters : nullptr,
             &outputParameters,
             44100,
             256,
@@ -154,7 +193,7 @@ struct AudioEngine
         return true;
     }
 
-    void restart(int device_id)
+    void restart(int input_id, int output_id)
     {
         if (stream)
         {
@@ -162,7 +201,7 @@ struct AudioEngine
             Pa_CloseStream(stream);
             stream = nullptr;
         }
-        init(device_id);
+        init(input_id, output_id);
     }
 
     void shutdown()

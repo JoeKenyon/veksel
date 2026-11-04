@@ -22,7 +22,7 @@ static const char *banner =
     " ╚████╔╝ ███████╗██║  ██╗███████║███████╗███████╗\n"
     "  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝";
 
-static float gain   = 0.5f;
+static float volume = 0.5f;
 static float param1 = 0.5f;
 static float param2 = 0.5f;
 static float param3 = 0.5f;
@@ -33,25 +33,76 @@ static AudioEngine audio;
 
 static void draw_ui()
 {
-    float freq = audio.load_frequency();
-    float vol = audio.load_volume();
+    volume = audio.load_volume();
 
     // make static so it persists between frames and doesn't re-allocate
     static std::vector<float> plot_data(512, 0.0f);
 
     ImGui::Columns(2, "main", true);
 
+
     // --- LEFT COLUMN: Controls & Visualizer ---
     ImGui::Text("%s", banner);
 
-    if (ImGui::SliderFloat("frequency", &freq, 100.0f, 18000.0f))
+
+   ImGui::SeparatorText("Audio Devices");
+
+    auto devices = audio.get_devices();
+
+    // --- Input Device Combo ---
+    std::string input_name = "None / Default";
+    for (const auto &d : devices)
     {
-        audio.set_frequency(freq);
+        if (d.id == audio.selected_input_device && d.max_input_channels > 0)
+        {
+            input_name = d.name;
+            break;
+        }
     }
-    
-    if (ImGui::SliderFloat("volume", &vol, 0.0f, 1.0f))
+
+    if (ImGui::BeginCombo("Input Device", input_name.c_str()))
+    {   
+        for (const auto &d : devices)
+        {
+            if (d.max_input_channels > 0)
+            {
+                bool is_selected = (audio.selected_input_device == d.id);
+                if (ImGui::Selectable(d.name.c_str(), is_selected))
+                {
+                    audio.restart(d.id, audio.selected_output_device);
+                }
+                if (is_selected) ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    // --- Output Device Combo ---
+    std::string output_name = "Default";
+    for (const auto &d : devices)
     {
-        audio.set_volume(vol);
+        if (d.id == audio.selected_output_device && d.max_output_channels > 0)
+        {
+            output_name = d.name;
+            break;
+        }
+    }
+
+    if (ImGui::BeginCombo("Output Device", output_name.c_str()))
+    {
+        for (const auto &d : devices)
+        {
+            if (d.max_output_channels > 0)
+            {
+                bool is_selected = (audio.selected_output_device == d.id);
+                if (ImGui::Selectable(d.name.c_str(), is_selected))
+                {
+                    audio.restart(audio.selected_input_device, d.id);
+                }
+                if (is_selected) ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
     }
 
     ImGui::SeparatorText("Visualizer");
@@ -74,7 +125,7 @@ static void draw_ui()
     audio.scope_buffer.read_latest(time_samples.data(), time_samples.size());
 
     // compute spectrum
-    analyzer.compute(time_samples.data(), 44100.0f);
+    analyzer.compute(time_samples.data(), 44100.0f); // variable sample rate maybe
 
     // copy to render vector
     for (size_t i = 0; i < analyzer.get_bin_count(); ++i)
@@ -87,7 +138,10 @@ static void draw_ui()
 
     ImGui::SeparatorText("Controls");
 
-    ImGui::SliderFloat("Gain"   , &gain  ,  0.0f,  1.0f);
+    if(ImGui::SliderFloat("Volume", &volume, 0.0f,  1.0f))
+    {
+        audio.set_volume(volume);
+    }
     ImGui::SliderFloat("Param 1", &param1,  0.0f,  1.0f);
     ImGui::SliderFloat("Param 2", &param2,  0.0f,  1.0f);
     ImGui::SliderFloat("Param 3", &param3,  0.0f,  1.0f);
@@ -122,12 +176,14 @@ static void draw_ui()
 
 int main()
 {
-    audio.init();
 
     if (!platform_init("Veksel", 1100, 650))
     {
         return 1;
     }
+
+    // initialize audio after platform windowing is up
+    audio.init();
 
     while (platform_begin_frame())
     {
