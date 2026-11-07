@@ -6,9 +6,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# put the executable in the project root, not build/
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
-
 # PortAudio from the submodule
 set(PA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(PA_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
