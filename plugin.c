@@ -1,18 +1,10 @@
-// Delay effect
-// KNOB_1 = delay time  (0..1 -> 0..1 second)
-// KNOB_2 = feedback    (0..1 -> 0..90%)
-// KNOB_3 = dry/wet mix (0..1 -> 0%..100% wet)
-//
-// Buffer is sized for 2 seconds at 48 kHz, so it works at any common
-// sample rate (44.1, 48, 88.2, 96). Statics reset when you save — that's
-// expected.
-
 #define MAX_DELAY 96000
 
 float buffer[MAX_DELAY];
 int write_ptr = 0;
 
-veksel_main {
+veksel_main 
+{
     // how many samples the delay knob is asking for
     int max_samples = (int)SAMPLE_RATE;
     if (max_samples > MAX_DELAY - 1) max_samples = MAX_DELAY - 1;
