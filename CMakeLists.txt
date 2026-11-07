@@ -4,32 +4,29 @@ project(veksel CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# build PortAudio from the submodule, no examples, no tests
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# put the executable in the project root, not build/
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# PortAudio from the submodule
 set(PA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(PA_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 add_subdirectory(portaudio)
 
-add_executable(veksel
-    src/main.cpp
-    src/Plugin.cpp        # <-- must be here
-    src/HostState.cpp
-    src/AudioEngine.cpp
-    src/Compiler.cpp
-    src/Host.cpp
-)
+add_executable(veksel src/main.cpp)
 
-target_include_directories(veksel PRIVATE include portaudio/include)
-
+target_include_directories(veksel PRIVATE portaudio/include)
 target_link_libraries(veksel PRIVATE portaudio dl pthread)
 
 if (APPLE)
-    target_link_options(veksel PRIVATE -Wl,-export_dynamic)
     target_link_libraries(veksel PRIVATE
         "-framework CoreAudio"
         "-framework CoreFoundation"
         "-framework AudioToolbox"
         "-framework AudioUnit"
     )
+    target_link_options(veksel PRIVATE -Wl,-export_dynamic)
 else()
     target_link_options(veksel PRIVATE -rdynamic)
 endif()

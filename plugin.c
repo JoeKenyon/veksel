@@ -1,30 +1,14 @@
-#define MAX_DELAY 96000
-
-float buffer[MAX_DELAY];
+float buffer[44100];
 int write_ptr = 0;
 
-veksel_main 
+veksel_main
 {
-    // how many samples the delay knob is asking for
-    int max_samples = (int)SAMPLE_RATE;
-    if (max_samples > MAX_DELAY - 1) max_samples = MAX_DELAY - 1;
-
-    int delay_samples = (int)(KNOB_1 * max_samples) + 1;
-    float feedback = KNOB_2 * 0.9f;
-    float mix = KNOB_3;
-
-    // read position is delay_samples behind the write head, wrapped
-    int read_ptr = write_ptr - delay_samples;
-    if (read_ptr < 0) read_ptr += MAX_DELAY;
-
-    // read the delayed sample, write input + feedback into the buffer
-    float delayed = buffer[read_ptr];
-    buffer[write_ptr] = input + delayed * feedback;
-
-    // advance the write head
-    write_ptr++;
-    if (write_ptr >= MAX_DELAY) write_ptr = 0;
-
-    // mix dry and wet
-    return input * (1.0f - mix) + delayed * mix;
+    int d = (int)(44100);
+    if (d < 1) d = 1;
+    int rp = write_ptr - d;
+    if (rp < 0) rp += 44100;
+    float delayed = buffer[rp];
+    buffer[write_ptr] = input + delayed * 0.5;
+    write_ptr = (write_ptr + 1) % 44100;
+    return input + delayed * 0.5;
 }
