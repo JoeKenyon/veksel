@@ -12,8 +12,6 @@ Three threads, one job each:
 
 No locks on the audio path. No leaks. Hot-reload without stopping the stream.
 
----
-
 ## Requirements
 
 - macOS or Linux
@@ -88,8 +86,6 @@ Quit:
 q
 ```
 
----
-
 ## Writing a plugin
 
 A plugin is a single function that takes an input sample and returns an output sample.
@@ -144,7 +140,7 @@ If you break these rules, the host crashes. `Ctrl-C`, fix the plugin, restart.
 6. The old plugin is `dlclose`'d.
 7. Statics in the new plugin start fresh.
 
-### Example
+## Example
 
 **Delay**
 
@@ -174,8 +170,6 @@ veksel_main
     return input * (1.0f - KNOB_3) + delayed * KNOB_3;
 }
 ```
-
----
 
 ## TODO
 
