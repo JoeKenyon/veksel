@@ -14,6 +14,10 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include <format>
+
+#include "imgui.h"
+#include "platform.h"
 #include "portaudio.h"
 
 #ifdef __APPLE__
@@ -30,6 +34,24 @@ static std::filesystem::file_time_type last_mtime = std::filesystem::file_time_t
 static std::mutex                 code_mutex;
 static std::condition_variable    code_condition_variable;
 static std::optional<std::string> code;
+
+// mutex and stuff for log
+static std::mutex               logging_text_mutex;
+static std::vector<std::string> logging_text;
+
+static void push_log_text(std::string msg)
+{
+    // lock so no other thread changes it
+    std::lock_guard<std::mutex> log_text_lock(logging_text_mutex);
+
+    // add the stuff to the log text
+    logging_text.push_back(msg);
+
+    // make it circular well techinically no but
+    // it should delete old ones
+    if (logging_text.size() > 100)
+        logging_text.erase(logging_text.begin());
+}
 
 using PluginFunc = float (*)(float);
 
@@ -164,8 +186,10 @@ Plugin* compile_source(const std::string& source)
         // print evech line to the log
         while (std::getline(log, line))
         {
-            printf("%s\n", line.c_str());
+            push_log_text(line);
         }
+
+        push_log_text("[error] compile failed!");
 
         // remove the temp directory
         std::filesystem::remove_all(temp_dir);
@@ -176,7 +200,8 @@ Plugin* compile_source(const std::string& source)
     void* handle = dlopen(dll_path.c_str(), RTLD_NOW);
     if (!handle)
     {
-        printf("dlopen: %s\n", dlerror());
+        const char* err = dlerror();
+        push_log_text(std::format("dlopen: {}\n", err ? err : "(null)"));
 
         // remove the temp directory
         std::filesystem::remove_all(temp_dir);
@@ -188,7 +213,7 @@ Plugin* compile_source(const std::string& source)
     if (!function)
     {
         // couldnt find it
-        printf("dlsym: no veksel_process_mono\n");
+        push_log_text("dlsym: no veksel_process_mono\n");
         dlclose(handle);
         std::filesystem::remove_all(temp_dir);
         return nullptr;
@@ -252,11 +277,14 @@ static void compiler_thread()
                 // whatever was in the pending_plugin slot to begin with is old news
                 // delete it
                 delete old_plugin;
+
+                push_log_text("[ok] compiled and swapped in");
             }
             else
             {
                 // compile error or something
-                printf("bad compile\n");
+                // reduendant dont need this push_log_text("bad compile\n");
+                push_log_text("[error] keeping current plugin");
             }
         }
     }
@@ -280,7 +308,7 @@ static std::string read_file_into_string(const std::string &path)
 
     if (!f.is_open())
     {
-        printf("could not open %s\n", path.c_str());
+        push_log_text(std::format("could not open {}\n", path));
         return "";
     }
 
@@ -289,9 +317,49 @@ static std::string read_file_into_string(const std::string &path)
     return ss.str();
 }
 
+static char g_source[65536] = "veksel_main { return input; }";
+
+static void draw_ui()
+{
+
+    ImGui::SeparatorText("Editor");
+    ImGui::InputTextMultiline("##source", g_source, sizeof g_source,
+                              ImVec2(-1, 300),
+                              ImGuiInputTextFlags_AllowTabInput);
+
+    if (ImGui::Button("Compile", ImVec2(-1, 0)))
+    {
+        {
+            std::lock_guard<std::mutex> lock(code_mutex);
+            code = std::string(g_source);
+        }
+        code_condition_variable.notify_one();   // notified after release
+    }
+
+    ImGui::SeparatorText("Log");
+    ImGui::BeginChild("##log", ImVec2(-1, 150), ImGuiChildFlags_Borders);
+    {
+        std::lock_guard<std::mutex> log_text_lock(logging_text_mutex);
+        for (auto& line : logging_text)
+        {
+            ImGui::TextUnformatted(line.c_str());
+        }
+
+        // stick to bottom if already at bottom
+        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f)
+            ImGui::SetScrollHereY(1.0f);
+    }
+    ImGui::EndChild();
+}
+
 int main()
 {
     std::signal(SIGINT, on_sigint);
+
+    if (!platform_init("Veksel", 800, 900))
+    {
+        return 1;
+    }
 
     if (Pa_Initialize() != paNoError)
     {
@@ -320,9 +388,9 @@ int main()
     const PaStreamInfo* info = Pa_GetStreamInfo(stream);
     if (info)
     {
-        printf("Input latency:  %.1f ms\n", info->inputLatency * 1000.0);
-        printf("Output latency: %.1f ms\n", info->outputLatency * 1000.0);
-        printf("Sample rate:    %.0f Hz\n",  info->sampleRate);
+        //printf("Input latency:  %.1f ms\n", info->inputLatency * 1000.0);
+        //printf("Output latency: %.1f ms\n", info->outputLatency * 1000.0);
+        //printf("Sample rate:    %.0f Hz\n",  info->sampleRate);
     }
 
     // start compiler thread
@@ -349,17 +417,14 @@ int main()
     {
         return 1;
     }
-    printf("running. ctrl-c to quit.\n");
+    //printf("running. ctrl-c to quit.\n");
 
-    while(!quit)
+    while (platform_begin_frame())
     {
         // check if file change
-        bool file_has_changed = file_changed(plugin_file);
-
-
-        if(file_has_changed)
+        if( file_changed(plugin_file))
         {
-            printf("file_changed\n");
+            push_log_text("[*] file_changed\n");
             // read file and compile
             std::string new_code = read_file_into_string(plugin_file);
 
@@ -374,7 +439,9 @@ int main()
             code_condition_variable.notify_one();
         }
 
-        Pa_Sleep(50);
+        draw_ui();
+        //Pa_Sleep(50);
+        platform_end_frame();
     }
 
     quit = true;
@@ -383,4 +450,5 @@ int main()
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
     Pa_Terminate();
+    platform_shutdown();
 }
