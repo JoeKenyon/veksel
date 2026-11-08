@@ -2,7 +2,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <csignal>
-#include <cstdio>
 #include <cstdlib>
 #include <dlfcn.h>
 #include <filesystem>
@@ -105,15 +104,19 @@ static int callback(const void* input, void* output, unsigned long frames,
 
     for (unsigned long i = 0; i < frames; i++)
     {
-        float s = in ? in[i] : 0.0f;
+        float sample = in ? in[i] : 0.0f;
 
         // if its even there
         if (plugin)
         {
-            s = plugin->function(s);
+            sample = plugin->function(sample);
         }
 
-        out[i * 2] = out[i * 2 + 1] = s;
+        if (!std::isfinite(sample)) sample = 0.0f;
+        sample = std::clamp(sample, -1.0f, 1.0f);
+
+        // do channels we need to make this channel speicifc
+        out[i * 2] = out[i * 2 + 1] = sample;
     }
     return paContinue;
 }
@@ -141,7 +144,7 @@ Plugin* compile_source(const std::string& source)
 
     std::filesystem::path temp_dir    = temp_dir_name;
     std::filesystem::path source_path = temp_dir / "plugin.c";
-    std::filesystem::path dll_path    = temp_dir / SHARED_EXT;
+    std::filesystem::path dll_path    = temp_dir / ("plugin" SHARED_EXT);
     std::filesystem::path log_path    = temp_dir / "log.txt";
 
     // add the prelude to the source file
@@ -192,7 +195,9 @@ Plugin* compile_source(const std::string& source)
         push_log_text("[error] compile failed!");
 
         // remove the temp directory
-        std::filesystem::remove_all(temp_dir);
+        std::error_code ec;
+        std::filesystem::remove_all(temp_dir, ec);
+        if (ec) push_log_text("cleanup failed: " + ec.message());
         return nullptr;
     }
 
@@ -204,7 +209,9 @@ Plugin* compile_source(const std::string& source)
         push_log_text(std::format("dlopen: {}\n", err ? err : "(null)"));
 
         // remove the temp directory
-        std::filesystem::remove_all(temp_dir);
+        std::error_code ec;
+        std::filesystem::remove_all(temp_dir, ec);
+        if (ec) push_log_text("cleanup failed: " + ec.message());
         return nullptr;
     }
 
@@ -215,13 +222,17 @@ Plugin* compile_source(const std::string& source)
         // couldnt find it
         push_log_text("dlsym: no veksel_process_mono\n");
         dlclose(handle);
-        std::filesystem::remove_all(temp_dir);
+        std::error_code ec;
+        std::filesystem::remove_all(temp_dir, ec);
+        if (ec) push_log_text("cleanup failed: " + ec.message());
         return nullptr;
     }
 
     // safe to delete the temp dir
     // the function is mapped into memory
-    std::filesystem::remove_all(temp_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(temp_dir, ec);
+    if (ec) push_log_text("cleanup failed: " + ec.message());
 
     // build and return the plugin
     auto* p = new Plugin();
@@ -290,17 +301,16 @@ static void compiler_thread()
     }
 }
 
+/* dont need this any more
 // use "stat" and global time var to check if file changed
 static bool file_changed(const std::string& path)
 {
-    auto t = std::filesystem::last_write_time(path);
-    if (t != last_mtime)
-    {
-        last_mtime = t;
-        return true;
-    }
-    return false;
-}
+    std::error_code ec;
+    auto t = std::filesystem::last_write_time(path, ec);
+    if (ec || t == last_mtime) return false;
+    last_mtime = t;
+    return true;
+}*/
 
 static std::string read_file_into_string(const std::string &path)
 {
@@ -317,13 +327,18 @@ static std::string read_file_into_string(const std::string &path)
     return ss.str();
 }
 
-static char g_source[65536] = "veksel_main { return input; }";
+// how big should this be
+static char source_code[65536] =
+    "veksel_main\n"
+    "{\n"
+    "   return input;\n"
+    "}\n";
 
 static void draw_ui()
 {
 
     ImGui::SeparatorText("Editor");
-    ImGui::InputTextMultiline("##source", g_source, sizeof g_source,
+    ImGui::InputTextMultiline("##source", source_code, sizeof source_code,
                               ImVec2(-1, 300),
                               ImGuiInputTextFlags_AllowTabInput);
 
@@ -331,7 +346,7 @@ static void draw_ui()
     {
         {
             std::lock_guard<std::mutex> lock(code_mutex);
-            code = std::string(g_source);
+            code = std::string(source_code);
         }
         code_condition_variable.notify_one();   // notified after release
     }
@@ -363,6 +378,7 @@ int main()
 
     if (Pa_Initialize() != paNoError)
     {
+        platform_shutdown();
         return 1;
     }
 
@@ -382,6 +398,8 @@ int main()
     if (Pa_OpenStream(&stream, &in_params, &out_params, 44100, 64,
                   paClipOff, callback, nullptr) != paNoError)
     {
+        Pa_Terminate();
+        platform_shutdown();
         return 1;
     }
 
@@ -396,18 +414,10 @@ int main()
     // start compiler thread
     std::thread _compiler_thread(compiler_thread);
 
-    const std::string plugin_file = "plugin.c";
-
-    // create if missing
-    if (!std::filesystem::exists(plugin_file))
-    {
-        std::ofstream(plugin_file) << "veksel_main { return input; }\n";
-    }
-
     // do initial compile
     {
         std::lock_guard<std::mutex> lock(code_mutex);
-        code = read_file_into_string(plugin_file);
+        code = std::string(source_code);
     }
     code_condition_variable.notify_one();
 
@@ -415,39 +425,34 @@ int main()
 
     if (Pa_StartStream(stream) != paNoError)
     {
+        quit = true;
+        code_condition_variable.notify_one();
+        _compiler_thread.join();
+
+        delete pending_plugin.exchange(nullptr);
+        delete to_be_deleted_plugin.exchange(nullptr);
+
+        Pa_CloseStream(stream);
+        Pa_Terminate();
+        platform_shutdown();
         return 1;
     }
-    //printf("running. ctrl-c to quit.\n");
 
-    while (platform_begin_frame())
+    while (!quit && platform_begin_frame())
     {
-        // check if file change
-        if( file_changed(plugin_file))
-        {
-            push_log_text("[*] file_changed\n");
-            // read file and compile
-            std::string new_code = read_file_into_string(plugin_file);
-
-            {
-                // get lock so compiler cant use it whilst we edit
-                std::lock_guard<std::mutex> lock_code(code_mutex);
-
-                // update the code
-                code = new_code;
-            } // use braces to automatically release mutex
-            // tell thread we changed
-            code_condition_variable.notify_one();
-        }
-
         draw_ui();
-        //Pa_Sleep(50);
         platform_end_frame();
     }
 
     quit = true;
     code_condition_variable.notify_one();
 
-    Pa_StopStream(stream);
+    PaError e = Pa_StopStream(stream);
+    if (e != paNoError && e != paStreamIsStopped)
+    {
+        _exit(1);
+    }
+
     Pa_CloseStream(stream);
 
     _compiler_thread.join();
@@ -459,4 +464,5 @@ int main()
     delete to_be_deleted_plugin.exchange(nullptr);
 
     Pa_Terminate();
+    platform_shutdown();
 }

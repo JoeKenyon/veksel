@@ -15,7 +15,11 @@ bool platform_init(const char *title, int w, int h)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
     win = glfwCreateWindow(w, h, title, nullptr, nullptr);
-    if (!win) return false;
+    if (!win)
+    {
+        glfwTerminate();
+        return false;
+    }
     glfwMakeContextCurrent(win);
     glfwSwapInterval(1);
 
