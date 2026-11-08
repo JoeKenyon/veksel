@@ -19,6 +19,9 @@
 #include "platform.h"
 #include "portaudio.h"
 
+#include "TextEditor.h"
+
+
 #ifdef __APPLE__
     #define SHARED_EXT ".dylib"
 #else
@@ -37,6 +40,9 @@ static std::optional<std::string> code;
 // mutex and stuff for log
 static std::mutex               logging_text_mutex;
 static std::vector<std::string> logging_text;
+
+// text editor
+static TextEditor text_editor;
 
 static void push_log_text(std::string msg)
 {
@@ -334,25 +340,119 @@ static char source_code[65536] =
     "   return input;\n"
     "}\n";
 
+static const char* logo =
+    "██╗   ██╗███████╗██╗  ██╗███████╗███████╗██╗     \n"
+    "██║   ██║██╔════╝██║ ██╔╝██╔════╝██╔════╝██║     \n"
+    "██║   ██║█████╗  █████╔╝ ███████╗█████╗  ██║     \n"
+    "╚██╗ ██╔╝██╔══╝  ██╔═██╗ ╚════██║██╔══╝  ██║     \n"
+    " ╚████╔╝ ███████╗██║  ██╗███████║███████╗███████╗\n"
+    "  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝";
+
+static float p1 = 0;
+static float p2 = 0;
+static float p3 = 0;
+static float p4 = 0;
+static float p5 = 0;
+static float p6 = 0;
+
 static void draw_ui()
 {
+    // create window
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->Pos);
+    ImGui::SetNextWindowSize(vp->Size);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
 
-    ImGui::SeparatorText("Editor");
-    ImGui::InputTextMultiline("##source", source_code, sizeof source_code,
-                              ImVec2(-1, 300),
-                              ImGuiInputTextFlags_AllowTabInput);
+    ImGui::Begin("VekselMain", nullptr,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoScrollbar);
 
-    if (ImGui::Button("Compile", ImVec2(-1, 0)))
+    // header with logo text, use the small font
+    ImGui::BeginChild("##header_child", ImVec2(-1, ImGui::GetTextLineHeightWithSpacing() * 3.750f), true);
+    if (g_small_font) ImGui::PushFont(g_small_font);
+    float window_width = ImGui::GetContentRegionAvail().x;
+    float logo_width = ImGui::CalcTextSize(logo).x;
+    ImGui::SetCursorPosX((window_width - logo_width) * 0.5f);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+    ImGui::TextUnformatted(logo);
+    ImGui::PopStyleColor();
+    if (g_small_font) ImGui::PopFont();
+    ImGui::EndChild();
+
+    // add some space
+    ImGui::Spacing();
+
+
+    float log_height  = 160;
+    float main_height = ImGui::GetContentRegionAvail().y - log_height;
+    float settings_width = ImGui::GetContentRegionAvail().x * 0.33;
+    float compile_button_height = 25;
+
+    if (ImGui::BeginTable("##main_split", 2, ImGuiTableColumnFlags_NoResize))
     {
+        // set up left and right columns
+        // how wide should settings be uuuhhh idk
+        ImGui::TableSetupColumn("Left", ImGuiTableColumnFlags_WidthFixed, settings_width);
+        ImGui::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableNextRow();
+
+        // start first col
+        ImGui::TableSetColumnIndex(0);
+        ImGui::BeginChild("##left_col", ImVec2(0, main_height), true);
+
+        // audio settings, configure these correctly later
+        static int in_audio_device = 0;
+        const char* in_devices[] = { "Default Input", "Mic 1", "Interface 1" };
+        ImGui::Combo("Input", &in_audio_device, in_devices, IM_ARRAYSIZE(in_devices));
+        static int out_audio_device = 0;
+        const char* out_devices[] = { "Default Output", "Speaker 1", "Interface 1" };
+        ImGui::Combo("Output", &out_audio_device, out_devices, IM_ARRAYSIZE(out_devices));
+
+        // add some space
+        ImGui::Spacing();
+
+        // add the params
+        ImGui::SliderFloat("Param 1", &p1, 0.0f, 1.0f);
+        ImGui::SliderFloat("Param 2", &p2, 0.0f, 1.0f);
+        ImGui::SliderFloat("Param 3", &p3, 0.0f, 1.0f);
+        ImGui::SliderFloat("Param 4", &p4, 0.0f, 1.0f);
+        ImGui::SliderFloat("Param 5", &p5, 0.0f, 1.0f);
+        ImGui::SliderFloat("Param 6", &p6, 0.0f, 1.0f);
+
+
+        // right col
+        ImGui::EndChild();
+        ImGui::TableSetColumnIndex(1);
+        ImGui::BeginChild("##right_col", ImVec2(0, main_height));
+
+        // text editor, leave space for button
+        auto avail = ImGui::GetContentRegionAvail();
+        text_editor.Render("##editor", ImVec2(-1, avail.y - compile_button_height), true);
+
+        // add compile button
+        if (ImGui::Button("Compile & Run", ImVec2(-1, compile_button_height)))
         {
-            std::lock_guard<std::mutex> lock(code_mutex);
-            code = std::string(source_code);
+            {
+                std::lock_guard<std::mutex> lock(code_mutex);
+                code = std::string(text_editor.GetText());
+            }
+            code_condition_variable.notify_one();
+            push_log_text("[info] compilation triggered via button");
         }
-        code_condition_variable.notify_one();   // notified after release
+
+
+        ImGui::EndChild();
+        ImGui::EndTable();
     }
 
-    ImGui::SeparatorText("Log");
-    ImGui::BeginChild("##log", ImVec2(-1, 150), ImGuiChildFlags_Borders);
+    // add some space
+    ImGui::Spacing();
+
+    // add the log, use log height or -1 idk
+    ImGui::BeginChild("##log", ImVec2(-1, -1), true);
     {
         std::lock_guard<std::mutex> log_text_lock(logging_text_mutex);
         for (auto& line : logging_text)
@@ -360,18 +460,22 @@ static void draw_ui()
             ImGui::TextUnformatted(line.c_str());
         }
 
-        // stick to bottom if already at bottom
         if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f)
             ImGui::SetScrollHereY(1.0f);
     }
     ImGui::EndChild();
+
+    // finished ui
+    ImGui::End();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
 }
 
 int main()
 {
     std::signal(SIGINT, on_sigint);
 
-    if (!platform_init("Veksel", 800, 900))
+    if (!platform_init("Veksel", 900, 800))
     {
         return 1;
     }
@@ -381,6 +485,26 @@ int main()
         platform_shutdown();
         return 1;
     }
+
+    // --- SETUP TEXT EDITOR ---
+
+    text_editor.SetLanguage(TextEditor::LookupLanguage("C"));
+
+    auto c_lang = const_cast<TextEditor::Language*>(text_editor.GetLanguage());
+    if (c_lang)
+    {
+        c_lang->identifiers.insert("veksel_main");
+        c_lang->identifiers.insert("input");
+    }
+
+    // 1. Start with the built-in dark palette (so syntax highlighting is preserved)
+    TextEditor::Palette p = TextEditor::GetDarkPalette();
+    p[static_cast<int>(TextEditor::Color::background)] = 0xff000000; // Pure black background
+    p[static_cast<int>(TextEditor::Color::text)]       = 0xffffffff; // Pure white text
+    p[static_cast<int>(TextEditor::Color::comment)]    = 0xff888888; // Dim gray for comments
+    text_editor.SetPalette(p);
+
+    text_editor.SetText("veksel_main\n{\n   return input;\n}\n");
 
     PaStreamParameters in_params = {};
     in_params.device = Pa_GetDefaultInputDevice();
@@ -420,8 +544,6 @@ int main()
         code = std::string(source_code);
     }
     code_condition_variable.notify_one();
-
-
 
     if (Pa_StartStream(stream) != paNoError)
     {

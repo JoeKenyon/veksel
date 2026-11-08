@@ -4,6 +4,8 @@
 
 Live-coded audio effects. Edit C in the window, press Compile, hear the change instantly.
 
+<img src="showcase.png" height="650px"/>
+
 ## Using it
 
 Your code goes in the editor. Write a function with the `veksel_main` macro that

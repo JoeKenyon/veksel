@@ -5,6 +5,7 @@
 #include "imgui_impl_opengl3.h"
 
 static GLFWwindow *win;
+ImFont* g_small_font = nullptr;
 
 bool platform_init(const char *title, int w, int h)
 {
@@ -27,8 +28,14 @@ bool platform_init(const char *title, int w, int h)
     ImGui::CreateContext();
 
     static const ImWchar ranges[] = { 0x20, 0x7F, 0x2500, 0x259F, 0 };
+
+    // 1. Load the main font (16px) for the code editor and other stuff
     ImGui::GetIO().Fonts->AddFontFromFileTTF(
         "/System/Library/Fonts/Menlo.ttc", 16.0f, nullptr, ranges);
+
+    // 2. Load the smaller font (12px) for the header logo
+    g_small_font = ImGui::GetIO().Fonts->AddFontFromFileTTF(
+        "/System/Library/Fonts/Menlo.ttc", 9.0f, nullptr, ranges);
 
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(win, true);
@@ -48,6 +55,9 @@ bool platform_begin_frame()
     const ImGuiViewport *vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->WorkPos);
     ImGui::SetNextWindowSize(vp->WorkSize);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
     ImGui::Begin("root", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -57,12 +67,14 @@ bool platform_begin_frame()
 void platform_end_frame()
 {
     ImGui::End();
+    ImGui::PopStyleVar(); // pop the zero window padding
+
     ImGui::Render();
 
     int fw, fh;
     glfwGetFramebufferSize(win, &fw, &fh);
     glViewport(0, 0, fw, fh);
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     glfwSwapBuffers(win);

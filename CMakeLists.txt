@@ -15,6 +15,8 @@ set(PA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(PA_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 add_subdirectory(portaudio)
 
+# NO ZEP HERE ANYMORE
+
 add_executable(veksel
     src/main.cpp
     src/platform.cpp
