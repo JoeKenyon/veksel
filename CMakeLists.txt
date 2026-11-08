@@ -24,6 +24,7 @@ add_executable(veksel
     ${IMGUI}/imgui_widgets.cpp
     ${IMGUI}/backends/imgui_impl_glfw.cpp
     ${IMGUI}/backends/imgui_impl_opengl3.cpp
+    ImGuiColorTextEdit/TextEditor.cpp
 )
 
 target_include_directories(veksel
@@ -31,6 +32,7 @@ target_include_directories(veksel
     portaudio/include
     ${IMGUI}
     ${IMGUI}/backends
+    ImGuiColorTextEdit
 )
 
 target_compile_definitions(veksel PRIVATE GL_SILENCE_DEPRECATION)

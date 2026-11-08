@@ -4,3 +4,6 @@
 [submodule "portaudio"]
 	path = portaudio
 	url = https://github.com/PortAudio/portaudio
+[submodule "ImGuiColorTextEdit"]
+	path = ImGuiColorTextEdit
+	url = https://github.com/goossens/ImGuiColorTextEdit.git

@@ -141,7 +141,7 @@ Plugin* compile_source(const std::string& source)
 
     std::filesystem::path temp_dir    = temp_dir_name;
     std::filesystem::path source_path = temp_dir / "plugin.c";
-    std::filesystem::path dll_path    = temp_dir / "plugin.dylib";
+    std::filesystem::path dll_path    = temp_dir / SHARED_EXT;
     std::filesystem::path log_path    = temp_dir / "log.txt";
 
     // add the prelude to the source file
@@ -446,9 +446,17 @@ int main()
 
     quit = true;
     code_condition_variable.notify_one();
-    _compiler_thread.join();
+
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
+
+    _compiler_thread.join();
+
+    delete current_plugin;
+    current_plugin = nullptr;
+
+    delete pending_plugin.exchange(nullptr);
+    delete to_be_deleted_plugin.exchange(nullptr);
+
     Pa_Terminate();
-    platform_shutdown();
 }
