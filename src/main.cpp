@@ -1,134 +1,48 @@
+#include <juce_gui_extra/juce_gui_extra.h>
+#include <juce_audio_utils/juce_audio_utils.h>
+
 #include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <csignal>
-#include <cstdlib>
-#include <dlfcn.h>
-#include <filesystem>
-#include <fstream>
-#include <mutex>
+#include <cmath>
+#include <memory>
 #include <optional>
-#include <sstream>
-#include <string>
-#include <thread>
-#include <unistd.h>
-#include <vector>
-#include <format>
 
-#include "imgui.h"
-#include "platform.h"
-#include "portaudio.h"
-
-#include "TextEditor.h"
-
-
-#ifdef __APPLE__
+#if JUCE_MAC
     #define SHARED_EXT ".dylib"
 #else
     #define SHARED_EXT ".so"
 #endif
 
-static std::atomic<bool> quit{false};
-static void on_sigint(int) { quit = true; }
+// ---------------------------------------------------------------------------
+// log (capped at 100 lines)
+// ---------------------------------------------------------------------------
+static juce::CriticalSection log_lock;
+static juce::StringArray     log_lines;
+static std::atomic<bool>     log_dirty{false};
 
-static std::filesystem::file_time_type last_mtime = std::filesystem::file_time_type::min();
-
-static std::mutex                 code_mutex;
-static std::condition_variable    code_condition_variable;
-static std::optional<std::string> code;
-
-// mutex and stuff for log
-static std::mutex               logging_text_mutex;
-static std::vector<std::string> logging_text;
-
-// text editor
-static TextEditor text_editor;
-
-static void push_log_text(std::string msg)
+static void push_log(const juce::String& msg)
 {
-    // lock so no other thread changes it
-    std::lock_guard<std::mutex> log_text_lock(logging_text_mutex);
-
-    // add the stuff to the log text
-    logging_text.push_back(msg);
-
-    // make it circular well techinically no but
-    // it should delete old ones
-    if (logging_text.size() > 100)
-        logging_text.erase(logging_text.begin());
+    const juce::ScopedLock sl(log_lock);
+    log_lines.add(msg);
+    if (log_lines.size() > 100)
+        log_lines.remove(0);
+    log_dirty = true;
 }
 
+// ---------------------------------------------------------------------------
+// plugin
+// ---------------------------------------------------------------------------
 using PluginFunc = float (*)(float);
 
 struct Plugin
 {
-    PluginFunc function = nullptr; // dsp function
-    void*      handle   = nullptr; // handle to library dll or whatever
-
-    bool valid() const { return function != nullptr; }
-
-    ~Plugin()
-    {
-        if (handle) dlclose(handle);
-    }
+    std::unique_ptr<juce::DynamicLibrary> lib; // closes the library on destruction
+    PluginFunc function = nullptr;
 };
 
-static Plugin* current_plugin = nullptr; // audio thread only, no atomic
+static Plugin*              current_plugin = nullptr; // audio thread only
 static std::atomic<Plugin*> pending_plugin{nullptr};
 static std::atomic<Plugin*> to_be_deleted_plugin{nullptr};
 
-static int callback(const void* input, void* output, unsigned long frames,
-                    const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void*)
-{
-
-    // if we have no plugin to be deleted
-    if (to_be_deleted_plugin.load() == nullptr)
-    {
-        // get the pending plugin, and exchange it with nullptr
-        Plugin* new_plugin = pending_plugin.exchange(nullptr);
-
-        // if theres was actually something pending
-        if (new_plugin)
-        {
-            // replace the current plugin with the new plugin
-            Plugin* old_plugin = current_plugin;
-            current_plugin = new_plugin;
-
-            // tell the compiler to delete the old plugin
-            if (old_plugin)
-            {
-                to_be_deleted_plugin.store(old_plugin);
-            }
-        }
-    }
-
-    const float* in = (const float*)input;
-    float* out = (float*)output;
-
-    // get the plugin
-    Plugin* plugin = current_plugin;
-
-    for (unsigned long i = 0; i < frames; i++)
-    {
-        float sample = in ? in[i] : 0.0f;
-
-        // if its even there
-        if (plugin)
-        {
-            sample = plugin->function(sample);
-        }
-
-        if (!std::isfinite(sample)) sample = 0.0f;
-        sample = std::clamp(sample, -1.0f, 1.0f);
-
-        // do channels we need to make this channel speicifc
-        out[i * 2] = out[i * 2 + 1] = sample;
-    }
-    return paContinue;
-}
-
-// what gets added to the users plugin
-// so they can focus on just the main func and stuff
 static const char* PRELUDE =
     "#include <math.h>\n"
     "#include <stdlib.h>\n"
@@ -137,210 +51,13 @@ static const char* PRELUDE =
     "float veksel_process_mono(float input);\n"
     "#define veksel_main float veksel_process_mono(float input)\n";
 
-Plugin* compile_source(const std::string& source)
-{
-    // make tempory directory for compiler plugins
-    char temp_dir_name[] = "/tmp/veksel_XXXXXX";
-
-    // we should be able to make this
-    if (!mkdtemp(temp_dir_name))
-    {
-        return nullptr;
-    }
-
-    std::filesystem::path temp_dir    = temp_dir_name;
-    std::filesystem::path source_path = temp_dir / "plugin.c";
-    std::filesystem::path dll_path    = temp_dir / ("plugin" SHARED_EXT);
-    std::filesystem::path log_path    = temp_dir / "log.txt";
-
-    // add the prelude to the source file
-    std::ofstream(source_path) << PRELUDE << "#line 1\n" << source;
-
-    // create compile command
-    // vector so we can use posix in the future or something
-    std::vector<std::string> _compile_cmd;
-
-    // or whereever it is, might need to automate this
-    _compile_cmd.push_back("/usr/bin/clang");
-    _compile_cmd.push_back("-O3"); // OPTIMIzE!
-    _compile_cmd.push_back("-march=native"); // machine specifc might not want this
-    _compile_cmd.push_back("-ffast-math");
-    _compile_cmd.push_back("-shared");
-    _compile_cmd.push_back("-fPIC");
-    #ifdef __APPLE__
-        _compile_cmd.push_back("-undefined");
-        _compile_cmd.push_back("dynamic_lookup");
-    #endif
-    _compile_cmd.push_back(source_path.string());
-    _compile_cmd.push_back("-o");
-    _compile_cmd.push_back(dll_path.string());
-
-
-    std::string compile_cmd;
-    for (const auto& arg : _compile_cmd)
-    {
-        compile_cmd += " ";
-        compile_cmd += arg;
-    }
-    compile_cmd += " > " + log_path.string() + " 2>&1";
-
-
-    if (system(compile_cmd.c_str()) != 0)
-    {
-        // compile failed
-        // tell the logger
-        std::ifstream log(log_path);
-        std::string line;
-
-        // print evech line to the log
-        while (std::getline(log, line))
-        {
-            push_log_text(line);
-        }
-
-        push_log_text("[error] compile failed!");
-
-        // remove the temp directory
-        std::error_code ec;
-        std::filesystem::remove_all(temp_dir, ec);
-        if (ec) push_log_text("cleanup failed: " + ec.message());
-        return nullptr;
-    }
-
-    // compile succeeded load the plugin
-    void* handle = dlopen(dll_path.c_str(), RTLD_NOW);
-    if (!handle)
-    {
-        const char* err = dlerror();
-        push_log_text(std::format("dlopen: {}\n", err ? err : "(null)"));
-
-        // remove the temp directory
-        std::error_code ec;
-        std::filesystem::remove_all(temp_dir, ec);
-        if (ec) push_log_text("cleanup failed: " + ec.message());
-        return nullptr;
-    }
-
-    // find the dsp function in the machine code
-    PluginFunc function = (PluginFunc)dlsym(handle, "veksel_process_mono");
-    if (!function)
-    {
-        // couldnt find it
-        push_log_text("dlsym: no veksel_process_mono\n");
-        dlclose(handle);
-        std::error_code ec;
-        std::filesystem::remove_all(temp_dir, ec);
-        if (ec) push_log_text("cleanup failed: " + ec.message());
-        return nullptr;
-    }
-
-    // safe to delete the temp dir
-    // the function is mapped into memory
-    std::error_code ec;
-    std::filesystem::remove_all(temp_dir, ec);
-    if (ec) push_log_text("cleanup failed: " + ec.message());
-
-    // build and return the plugin
-    auto* p = new Plugin();
-    p->function = function;
-    p->handle = handle;
-    return p;
-}
-
-static void compiler_thread()
-{
-
-    while(!quit)
-    {
-        // get the pending plugin, and exchange it with nullptr
-        delete to_be_deleted_plugin.exchange(nullptr);
-
-        std::optional<std::string> source;
-        {
-            // use uniquelock so we can release mutex
-            // if we we cant get the code yet
-            std::unique_lock<std::mutex> lock(code_mutex);
-
-            static auto wait_condition = [] { return code.has_value() || quit; };
-
-            // wait for code to not be empty
-            // i.e wait for some new code to get added that needs compiling
-            code_condition_variable.wait_for(lock, std::chrono::milliseconds(10), wait_condition);
-            if (quit)
-            {
-                return;
-            }
-
-            // source gets the value, code is now empty
-            source = std::move(code);
-
-            // nullify that code holder so we can add more later
-            code.reset();
-        } // lock released
-
-        if (source)
-        {
-            // if we have some source to compile
-            // compile it and get the new plugin
-            Plugin* new_plugin = compile_source(*source);
-
-            // if compiled
-            if (new_plugin)
-            {
-                // update the pending plugin so we
-                // can swap it in the audio thread
-                Plugin* old_plugin = pending_plugin.exchange(new_plugin);
-
-                // whatever was in the pending_plugin slot to begin with is old news
-                // delete it
-                delete old_plugin;
-
-                push_log_text("[ok] compiled and swapped in");
-            }
-            else
-            {
-                // compile error or something
-                // reduendant dont need this push_log_text("bad compile\n");
-                push_log_text("[error] keeping current plugin");
-            }
-        }
-    }
-}
-
-/* dont need this any more
-// use "stat" and global time var to check if file changed
-static bool file_changed(const std::string& path)
-{
-    std::error_code ec;
-    auto t = std::filesystem::last_write_time(path, ec);
-    if (ec || t == last_mtime) return false;
-    last_mtime = t;
-    return true;
-}*/
-
-static std::string read_file_into_string(const std::string &path)
-{
-    std::ifstream f(path);
-
-    if (!f.is_open())
-    {
-        push_log_text(std::format("could not open {}\n", path));
-        return "";
-    }
-
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
-}
-
-// how big should this be
-static char source_code[65536] =
+static const char* DEFAULT_SOURCE =
     "veksel_main\n"
     "{\n"
     "   return input;\n"
     "}\n";
 
-static const char* logo =
+static const char* LOGO =
     "██╗   ██╗███████╗██╗  ██╗███████╗███████╗██╗     \n"
     "██║   ██║██╔════╝██║ ██╔╝██╔════╝██╔════╝██║     \n"
     "██║   ██║█████╗  █████╔╝ ███████╗█████╗  ██║     \n"
@@ -348,243 +65,428 @@ static const char* logo =
     " ╚████╔╝ ███████╗██║  ██╗███████║███████╗███████╗\n"
     "  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝";
 
-static float p1 = 0;
-static float p2 = 0;
-static float p3 = 0;
-static float p4 = 0;
-static float p5 = 0;
-static float p6 = 0;
+static float params[6] = {};
 
-static void draw_ui()
+// ---------------------------------------------------------------------------
+// compile: source -> temp dir -> clang -> DynamicLibrary
+// ---------------------------------------------------------------------------
+static Plugin* build_plugin(const juce::File& dir, const juce::String& source)
 {
-    // create window
-    ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(vp->Pos);
-    ImGui::SetNextWindowSize(vp->Size);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+    auto source_file = dir.getChildFile("plugin.c");
+    auto lib_file    = dir.getChildFile("plugin" SHARED_EXT);
 
-    ImGui::Begin("VekselMain", nullptr,
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoScrollbar);
-
-    // header with logo text, use the small font
-    ImGui::BeginChild("##header_child", ImVec2(-1, ImGui::GetTextLineHeightWithSpacing() * 3.750f), true);
-    if (g_small_font) ImGui::PushFont(g_small_font);
-    float window_width = ImGui::GetContentRegionAvail().x;
-    float logo_width = ImGui::CalcTextSize(logo).x;
-    ImGui::SetCursorPosX((window_width - logo_width) * 0.5f);
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-    ImGui::TextUnformatted(logo);
-    ImGui::PopStyleColor();
-    if (g_small_font) ImGui::PopFont();
-    ImGui::EndChild();
-
-    // add some space
-    ImGui::Spacing();
-
-
-    float log_height  = 160;
-    float main_height = ImGui::GetContentRegionAvail().y - log_height;
-    float settings_width = ImGui::GetContentRegionAvail().x * 0.33;
-    float compile_button_height = 25;
-
-    if (ImGui::BeginTable("##main_split", 2, ImGuiTableColumnFlags_NoResize))
+    if (! source_file.replaceWithText(juce::String(PRELUDE) + "#line 1\n" + source))
     {
-        // set up left and right columns
-        // how wide should settings be uuuhhh idk
-        ImGui::TableSetupColumn("Left", ImGuiTableColumnFlags_WidthFixed, settings_width);
-        ImGui::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableNextRow();
-
-        // start first col
-        ImGui::TableSetColumnIndex(0);
-        ImGui::BeginChild("##left_col", ImVec2(0, main_height), true);
-
-        // audio settings, configure these correctly later
-        static int in_audio_device = 0;
-        const char* in_devices[] = { "Default Input", "Mic 1", "Interface 1" };
-        ImGui::Combo("Input", &in_audio_device, in_devices, IM_ARRAYSIZE(in_devices));
-        static int out_audio_device = 0;
-        const char* out_devices[] = { "Default Output", "Speaker 1", "Interface 1" };
-        ImGui::Combo("Output", &out_audio_device, out_devices, IM_ARRAYSIZE(out_devices));
-
-        // add some space
-        ImGui::Spacing();
-
-        // add the params
-        ImGui::SliderFloat("Param 1", &p1, 0.0f, 1.0f);
-        ImGui::SliderFloat("Param 2", &p2, 0.0f, 1.0f);
-        ImGui::SliderFloat("Param 3", &p3, 0.0f, 1.0f);
-        ImGui::SliderFloat("Param 4", &p4, 0.0f, 1.0f);
-        ImGui::SliderFloat("Param 5", &p5, 0.0f, 1.0f);
-        ImGui::SliderFloat("Param 6", &p6, 0.0f, 1.0f);
-
-
-        // right col
-        ImGui::EndChild();
-        ImGui::TableSetColumnIndex(1);
-        ImGui::BeginChild("##right_col", ImVec2(0, main_height));
-
-        // text editor, leave space for button
-        auto avail = ImGui::GetContentRegionAvail();
-        text_editor.Render("##editor", ImVec2(-1, avail.y - compile_button_height), true);
-
-        // add compile button
-        if (ImGui::Button("Compile & Run", ImVec2(-1, compile_button_height)))
-        {
-            {
-                std::lock_guard<std::mutex> lock(code_mutex);
-                code = std::string(text_editor.GetText());
-            }
-            code_condition_variable.notify_one();
-            push_log_text("[info] compilation triggered via button");
-        }
-
-
-        ImGui::EndChild();
-        ImGui::EndTable();
+        push_log("[error] could not write source file");
+        return nullptr;
     }
 
-    // add some space
-    ImGui::Spacing();
+    juce::StringArray cmd { "/usr/bin/clang", "-O3", "-march=native", "-ffast-math", "-shared", "-fPIC" };
+   #if JUCE_MAC
+    cmd.add("-undefined");
+    cmd.add("dynamic_lookup");
+   #endif
+    cmd.add(source_file.getFullPathName());
+    cmd.add("-o");
+    cmd.add(lib_file.getFullPathName());
 
-    // add the log, use log height or -1 idk
-    ImGui::BeginChild("##log", ImVec2(-1, -1), true);
+    juce::ChildProcess proc;
+    if (! proc.start(cmd, juce::ChildProcess::wantStdOut | juce::ChildProcess::wantStdErr))
     {
-        std::lock_guard<std::mutex> log_text_lock(logging_text_mutex);
-        for (auto& line : logging_text)
-        {
-            ImGui::TextUnformatted(line.c_str());
-        }
-
-        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f)
-            ImGui::SetScrollHereY(1.0f);
+        push_log("[error] failed to start clang");
+        return nullptr;
     }
-    ImGui::EndChild();
 
-    // finished ui
-    ImGui::End();
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
+    // reads until the child closes its pipe, so large output can't deadlock it
+    auto output = proc.readAllProcessOutput();
+    proc.waitForProcessToFinish(-1);
+
+    if (proc.getExitCode() != 0)
+    {
+        juce::StringArray lines;
+        lines.addLines(output);
+        for (auto& line : lines)
+            push_log(line);
+
+        push_log("[error] compile failed!");
+        return nullptr;
+    }
+
+    auto lib = std::make_unique<juce::DynamicLibrary>();
+    if (! lib->open(lib_file.getFullPathName()))
+    {
+        push_log("dlopen: failed to load " + lib_file.getFullPathName());
+        return nullptr;
+    }
+
+    auto function = (PluginFunc) lib->getFunction("veksel_process_mono");
+    if (! function)
+    {
+        push_log("dlsym: no veksel_process_mono");
+        return nullptr; // lib closes itself
+    }
+
+    auto* p     = new Plugin();
+    p->lib      = std::move(lib);
+    p->function = function;
+    return p;
 }
 
-int main()
+static Plugin* compile_source(const juce::String& source)
 {
-    std::signal(SIGINT, on_sigint);
+    auto temp_dir = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                        .getChildFile("veksel_" + juce::Uuid().toString());
 
-    if (!platform_init("Veksel", 900, 800))
+    if (! temp_dir.createDirectory())
     {
-        return 1;
+        push_log("[error] could not create temp dir");
+        return nullptr;
     }
 
-    if (Pa_Initialize() != paNoError)
+    Plugin* p = build_plugin(temp_dir, source);
+
+    // safe to delete: the library is already mapped into memory
+    if (! temp_dir.deleteRecursively())
+        push_log("cleanup failed: " + temp_dir.getFullPathName());
+
+    return p;
+}
+
+// ---------------------------------------------------------------------------
+// compiler thread
+// ---------------------------------------------------------------------------
+class CompilerThread : public juce::Thread
+{
+public:
+    CompilerThread() : juce::Thread("CompilerThread") {}
+
+    void set_code(const juce::String& s)
     {
-        platform_shutdown();
-        return 1;
+        {
+            const juce::ScopedLock sl(code_lock);
+            code = s;
+        }
+        notify();
     }
 
-    // --- SETUP TEXT EDITOR ---
-
-    text_editor.SetLanguage(TextEditor::LookupLanguage("C"));
-
-    auto c_lang = const_cast<TextEditor::Language*>(text_editor.GetLanguage());
-    if (c_lang)
+    void run() override
     {
-        c_lang->identifiers.insert("veksel_main");
-        c_lang->identifiers.insert("input");
+        while (! threadShouldExit())
+        {
+            // free whatever the audio thread retired
+            delete to_be_deleted_plugin.exchange(nullptr);
+
+            // short timeout so retired plugins keep getting drained
+            wait(10);
+            if (threadShouldExit())
+                return;
+
+            std::optional<juce::String> source;
+            {
+                const juce::ScopedLock sl(code_lock);
+                source = std::move(code);
+                code.reset();
+            }
+
+            if (! source)
+                continue;
+
+            if (Plugin* new_plugin = compile_source(*source))
+            {
+                // whatever was pending is old news
+                delete pending_plugin.exchange(new_plugin);
+                push_log("[ok] compiled and swapped in");
+            }
+            else
+            {
+                push_log("[error] keeping current plugin");
+            }
+        }
     }
 
-    // 1. Start with the built-in dark palette (so syntax highlighting is preserved)
-    TextEditor::Palette p = TextEditor::GetDarkPalette();
-    p[static_cast<int>(TextEditor::Color::background)] = 0xff000000; // Pure black background
-    p[static_cast<int>(TextEditor::Color::text)]       = 0xffffffff; // Pure white text
-    p[static_cast<int>(TextEditor::Color::comment)]    = 0xff888888; // Dim gray for comments
-    text_editor.SetPalette(p);
+private:
+    juce::CriticalSection       code_lock;
+    std::optional<juce::String> code;
+};
 
-    text_editor.SetText("veksel_main\n{\n   return input;\n}\n");
-
-    PaStreamParameters in_params = {};
-    in_params.device = Pa_GetDefaultInputDevice();
-    in_params.channelCount = 1;
-    in_params.sampleFormat = paFloat32;
-    in_params.suggestedLatency = 0.01;   // 10 ms, not the default
-
-    PaStreamParameters out_params = {};
-    out_params.device = Pa_GetDefaultOutputDevice();
-    out_params.channelCount = 2;
-    out_params.sampleFormat = paFloat32;
-    out_params.suggestedLatency = 0.01;
-
-    PaStream* stream;
-    if (Pa_OpenStream(&stream, &in_params, &out_params, 44100, 64,
-                  paClipOff, callback, nullptr) != paNoError)
+// ---------------------------------------------------------------------------
+// audio
+// ---------------------------------------------------------------------------
+class AudioEngine : public juce::AudioIODeviceCallback
+{
+public:
+    void audioDeviceIOCallbackWithContext(const float* const* in, int num_in,
+                                          float* const* out, int num_out,
+                                          int num_samples,
+                                          const juce::AudioIODeviceCallbackContext&) override
     {
-        Pa_Terminate();
-        platform_shutdown();
-        return 1;
+        // swap in a pending plugin if the previous retiree has been collected
+        if (to_be_deleted_plugin.load() == nullptr)
+        {
+            if (Plugin* new_plugin = pending_plugin.exchange(nullptr))
+            {
+                Plugin* old_plugin = current_plugin;
+                current_plugin = new_plugin;
+                if (old_plugin)
+                    to_be_deleted_plugin.store(old_plugin);
+            }
+        }
+
+        Plugin* plugin = current_plugin;
+        const float* input = (num_in > 0) ? in[0] : nullptr;
+
+        for (int i = 0; i < num_samples; ++i)
+        {
+            float sample = input ? input[i] : 0.0f;
+
+            if (plugin)
+                sample = plugin->function(sample);
+
+            if (! std::isfinite(sample)) sample = 0.0f;
+            sample = juce::jlimit(-1.0f, 1.0f, sample);
+
+            for (int ch = 0; ch < num_out; ++ch)
+                if (out[ch]) out[ch][i] = sample;
+        }
     }
 
-    const PaStreamInfo* info = Pa_GetStreamInfo(stream);
-    if (info)
+    void audioDeviceAboutToStart(juce::AudioIODevice*) override {}
+    void audioDeviceStopped() override {}
+};
+
+// ---------------------------------------------------------------------------
+// ui
+// ---------------------------------------------------------------------------
+class MainComponent : public juce::Component, private juce::Timer
+{
+public:
+    MainComponent()
     {
-        //printf("Input latency:  %.1f ms\n", info->inputLatency * 1000.0);
-        //printf("Output latency: %.1f ms\n", info->outputLatency * 1000.0);
-        //printf("Sample rate:    %.0f Hz\n",  info->sampleRate);
+        // editor
+        codeEditor.loadContent(DEFAULT_SOURCE);
+        codeEditor.setColour(juce::CodeEditorComponent::backgroundColourId,  juce::Colours::black);
+        codeEditor.setColour(juce::CodeEditorComponent::defaultTextColourId, juce::Colours::white);
+        addAndMakeVisible(codeEditor);
+
+        // compile button
+        compileButton.setButtonText("Compile & Run");
+        compileButton.onClick = [this]
+        {
+            compiler.set_code(codeEditor.getDocument().getAllContent());
+            push_log("[info] compilation triggered via button");
+        };
+        addAndMakeVisible(compileButton);
+
+        // log
+        logText.setMultiLine(true);
+        logText.setReadOnly(true);
+        logText.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
+        addAndMakeVisible(logText);
+
+        // params
+        for (int i = 0; i < 6; ++i)
+        {
+            param_labels[i].setText("Param " + juce::String(i + 1), juce::dontSendNotification);
+            addAndMakeVisible(param_labels[i]);
+
+            auto& s = param_sliders[i];
+            s.setRange(0.0, 1.0);
+            s.setSliderStyle(juce::Slider::LinearHorizontal);
+            s.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
+            s.onValueChange = [&s, i] { params[i] = (float) s.getValue(); };
+            addAndMakeVisible(s);
+        }
+
+        // devices
+        in_label.setText("Input", juce::dontSendNotification);
+        out_label.setText("Output", juce::dontSendNotification);
+        addAndMakeVisible(in_label);
+        addAndMakeVisible(out_label);
+        addAndMakeVisible(in_combo);
+        addAndMakeVisible(out_combo);
+
+        // audio: mono in, stereo out, 44.1k, 64 frames
+        juce::AudioDeviceManager::AudioDeviceSetup setup;
+        setup.sampleRate = 44100.0;
+        setup.bufferSize = 64;
+
+        auto error = device_manager.initialise(1, 2, nullptr, true, {}, &setup);
+        if (error.isNotEmpty())
+        {
+            push_log("[error] audio device: " + error);
+        }
+        else
+        {
+            device_manager.addAudioCallback(&audio_engine);
+            push_log("[ok] audio engine started");
+        }
+
+        populate_devices();
+
+        // compiler + initial compile
+        compiler.startThread();
+        compiler.set_code(DEFAULT_SOURCE);
+
+        setSize(900, 800);
+        startTimerHz(10);
     }
 
-    // start compiler thread
-    std::thread _compiler_thread(compiler_thread);
-
-    // do initial compile
+    ~MainComponent() override
     {
-        std::lock_guard<std::mutex> lock(code_mutex);
-        code = std::string(source_code);
-    }
-    code_condition_variable.notify_one();
+        stopTimer();
 
-    if (Pa_StartStream(stream) != paNoError)
-    {
-        quit = true;
-        code_condition_variable.notify_one();
-        _compiler_thread.join();
+        compiler.signalThreadShouldExit();
+        compiler.notify();
+        compiler.stopThread(-1); // join
 
+        device_manager.removeAudioCallback(&audio_engine);
+        device_manager.closeAudioDevice();
+
+        delete current_plugin;
+        current_plugin = nullptr;
         delete pending_plugin.exchange(nullptr);
         delete to_be_deleted_plugin.exchange(nullptr);
-
-        Pa_CloseStream(stream);
-        Pa_Terminate();
-        platform_shutdown();
-        return 1;
     }
 
-    while (!quit && platform_begin_frame())
+    void paint(juce::Graphics& g) override
     {
-        draw_ui();
-        platform_end_frame();
+        g.fillAll(juce::Colours::black);
+
+        g.setColour(juce::Colours::white);
+        g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 10.0f, juce::Font::plain)));
+        g.drawFittedText(LOGO, header_bounds, juce::Justification::centred, 6, 1.0f);
+
+        g.setColour(juce::Colours::darkgrey);
+        g.drawRect(header_bounds);
     }
 
-    quit = true;
-    code_condition_variable.notify_one();
-
-    PaError e = Pa_StopStream(stream);
-    if (e != paNoError && e != paStreamIsStopped)
+    void resized() override
     {
-        _exit(1);
+        auto area = getLocalBounds().reduced(10);
+
+        header_bounds = area.removeFromTop(70);
+        area.removeFromTop(8);
+
+        logText.setBounds(area.removeFromBottom(160));
+        area.removeFromBottom(8);
+
+        // left: settings
+        auto left = area.removeFromLeft(area.getWidth() / 3);
+        area.removeFromLeft(8);
+
+        auto row = [&left](juce::Component& label, juce::Component& control)
+        {
+            auto r = left.removeFromTop(24);
+            label.setBounds(r.removeFromLeft(60));
+            control.setBounds(r);
+            left.removeFromTop(4);
+        };
+
+        row(in_label, in_combo);
+        row(out_label, out_combo);
+        left.removeFromTop(8);
+        for (int i = 0; i < 6; ++i)
+            row(param_labels[i], param_sliders[i]);
+
+        // right: editor + compile button
+        compileButton.setBounds(area.removeFromBottom(25));
+        codeEditor.setBounds(area);
     }
 
-    Pa_CloseStream(stream);
+private:
+    void timerCallback() override
+    {
+        if (! log_dirty.exchange(false))
+            return;
 
-    _compiler_thread.join();
+        juce::String text;
+        {
+            const juce::ScopedLock sl(log_lock);
+            text = log_lines.joinIntoString("\n");
+        }
 
-    delete current_plugin;
-    current_plugin = nullptr;
+        logText.setText(text, false);
+        logText.moveCaretToEnd();
+    }
 
-    delete pending_plugin.exchange(nullptr);
-    delete to_be_deleted_plugin.exchange(nullptr);
+    void populate_devices()
+    {
+        auto* type = device_manager.getCurrentDeviceTypeObject();
+        if (! type)
+            return;
 
-    Pa_Terminate();
-    platform_shutdown();
-}
+        auto setup = device_manager.getAudioDeviceSetup();
+
+        in_combo.clear(juce::dontSendNotification);
+        out_combo.clear(juce::dontSendNotification);
+        in_combo.addItemList(type->getDeviceNames(true), 1);
+        out_combo.addItemList(type->getDeviceNames(false), 1);
+        in_combo.setText(setup.inputDeviceName, juce::dontSendNotification);
+        out_combo.setText(setup.outputDeviceName, juce::dontSendNotification);
+
+        in_combo.onChange  = [this] { change_device(true); };
+        out_combo.onChange = [this] { change_device(false); };
+    }
+
+    void change_device(bool is_input)
+    {
+        auto setup = device_manager.getAudioDeviceSetup();
+
+        if (is_input) setup.inputDeviceName  = in_combo.getText();
+        else          setup.outputDeviceName = out_combo.getText();
+
+        auto error = device_manager.setAudioDeviceSetup(setup, true);
+        if (error.isNotEmpty())
+            push_log("[error] audio device: " + error);
+    }
+
+    juce::CodeDocument                codeDocument;
+    juce::CPlusPlusCodeTokeniser      codeTokeniser;
+    juce::CodeEditorComponent         codeEditor{ codeDocument, &codeTokeniser };
+    juce::TextButton                  compileButton;
+    juce::TextEditor                  logText;
+
+    juce::Label                       in_label, out_label, param_labels[6];
+    juce::ComboBox                    in_combo, out_combo;
+    juce::Slider                      param_sliders[6];
+    juce::Rectangle<int>              header_bounds;
+
+    CompilerThread                    compiler;
+    AudioEngine                       audio_engine;
+    juce::AudioDeviceManager          device_manager;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
+};
+
+// ---------------------------------------------------------------------------
+// app
+// ---------------------------------------------------------------------------
+class VekselApplication : public juce::JUCEApplication
+{
+public:
+    const juce::String getApplicationName() override    { return "Veksel"; }
+    const juce::String getApplicationVersion() override { return "1.0.0"; }
+
+    void initialise(const juce::String&) override { main_window = std::make_unique<MainWindow>(getApplicationName()); }
+    void shutdown() override                      { main_window = nullptr; }
+
+private:
+    class MainWindow : public juce::DocumentWindow
+    {
+    public:
+        MainWindow(juce::String name)
+            : DocumentWindow(name, juce::Colours::black, DocumentWindow::allButtons)
+        {
+            setUsingNativeTitleBar(true);
+            setContentOwned(new MainComponent(), true);
+            centreWithSize(getWidth(), getHeight());
+            setVisible(true);
+        }
+
+        void closeButtonPressed() override { juce::JUCEApplication::getInstance()->systemRequestedQuit(); }
+    };
+
+    std::unique_ptr<MainWindow> main_window;
+};
+
+START_JUCE_APPLICATION(VekselApplication)

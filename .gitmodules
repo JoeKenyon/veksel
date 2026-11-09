@@ -1,9 +1,3 @@
-[submodule "imgui"]
-	path = imgui
-	url = https://github.com/ocornut/imgui
-[submodule "portaudio"]
-	path = portaudio
-	url = https://github.com/PortAudio/portaudio
-[submodule "ImGuiColorTextEdit"]
-	path = ImGuiColorTextEdit
-	url = https://github.com/goossens/ImGuiColorTextEdit.git
+[submodule "JUCE"]
+	path = JUCE
+	url = https://github.com/juce-framework/JUCE.git
