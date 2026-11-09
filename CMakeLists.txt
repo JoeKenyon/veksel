@@ -12,12 +12,18 @@ juce_add_plugin(Veksel
     MICROPHONE_PERMISSION_TEXT "Veksel needs audio input")
 
 target_sources(Veksel PRIVATE
-    src/Main.cpp src/Processor.cpp src/Editor.cpp
-    src/Compiler.cpp src/Log.cpp)
+    src/Main.cpp
+    src/Processor.cpp
+    src/Editor.cpp
+    src/Compiler.cpp
+    src/Log.cpp
+)
 
 target_link_libraries(Veksel PRIVATE
-    juce::juce_audio_utils juce::juce_gui_extra
-    juce::juce_recommended_config_flags)
+    juce::juce_audio_utils
+    juce::juce_gui_extra
+    juce::juce_recommended_config_flags
+)
 
 # Recommended JUCE compile definitions
 target_compile_definitions(Veksel PRIVATE

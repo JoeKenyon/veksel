@@ -15,28 +15,13 @@ namespace
 }
 
 VekselEditor::VekselEditor(VekselProcessor& p)
-    : juce::AudioProcessorEditor(p), proc(p)
+    : juce::AudioProcessorEditor(p), proc(p),
+    codeEditor (codeDocument, &codeTokeniser)
 {
     // code editor
+    // code editor
     codeEditor.loadContent(proc.get_source());
-    codeEditor.setColour(juce::CodeEditorComponent::backgroundColourId,     juce::Colours::black);
-    codeEditor.setColour(juce::CodeEditorComponent::defaultTextColourId,    juce::Colours::white);
-    codeEditor.setColour(juce::CodeEditorComponent::lineNumberTextId,       juce::Colour(0xff888888));
-    codeEditor.setColour(juce::CodeEditorComponent::lineNumberBackgroundId, juce::Colour(0xff111111));
 
-    // the tokeniser's default colours are for light backgrounds
-    auto scheme = codeEditor.getColourScheme();
-    for (auto& t : scheme.types)
-    {
-        if      (t.name == "Error")                        t.colour = juce::Colours::red;
-        else if (t.name == "Comment")                      t.colour = juce::Colour(0xff888888);
-        else if (t.name == "Keyword")                      t.colour = juce::Colour(0xff6cb6ff);
-        else if (t.name == "Integer" || t.name == "Float") t.colour = juce::Colour(0xffe0a458);
-        else if (t.name == "String")                       t.colour = juce::Colour(0xff98c379);
-        else if (t.name == "Preprocessor Text")            t.colour = juce::Colour(0xffc678dd);
-        else                                               t.colour = juce::Colours::white;
-    }
-    codeEditor.setColourScheme(scheme);
     addAndMakeVisible(codeEditor);
 
     // compile button
@@ -69,8 +54,29 @@ void VekselEditor::paint(juce::Graphics& g)
     g.fillAll(juce::Colours::black);
 
     g.setColour(juce::Colours::white);
-    //g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 10.0f, juce::Font::plain)));
-    g.drawFittedText(juce::String::fromUTF8(LOGO), header_bounds, 6, 1.0f);
+
+    // Create the font using modern JUCE FontOptions
+    juce::Font font(juce::FontOptions().withName(juce::Font::getDefaultMonospacedFontName()).withHeight(16.0f));
+    g.setFont(font);
+
+    // Split the logo into separate lines
+    juce::String logoStr(juce::String::fromUTF8(LOGO));
+    juce::StringArray lines;
+    lines.addLines(logoStr);
+
+    float line_height = font.getHeight();
+    float total_height = lines.size() * line_height;
+    float start_y = header_bounds.getY() + (header_bounds.getHeight() - total_height) / 2.0f;
+
+    // Use a standard integer loop to completely avoid any implicit boolean casting issues
+    for (int i = 0; i < lines.size(); ++i)
+    {
+        // Explicitly measure the string width using GlyphArrangement
+        float line_width = juce::GlyphArrangement::getStringWidth(font, lines[i]);
+        float start_x = header_bounds.getX() + (header_bounds.getWidth() - line_width) / 2.0f;
+
+        g.drawText(lines[i], start_x, start_y + (i * line_height), line_width, line_height, juce::Justification::left, false);
+    }
 
     g.setColour(juce::Colours::darkgrey);
 }
