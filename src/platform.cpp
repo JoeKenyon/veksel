@@ -4,6 +4,63 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+
+
+static void apply_style()
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    style.WindowRounding    = Theme::border_radius;
+    style.ChildRounding     = Theme::border_radius;
+    style.FrameRounding     = Theme::border_radius;
+    style.PopupRounding     = Theme::border_radius;
+    style.ScrollbarRounding = Theme::border_radius;
+    style.GrabRounding      = Theme::border_radius;
+
+    // Borders
+    style.WindowBorderSize = 0.0f;
+    style.ChildBorderSize  = 0.0f;
+    style.FrameBorderSize  = 1.0f;
+    style.PopupBorderSize  = 0.0f;
+
+    // Spacing
+    style.WindowPadding = ImVec2(2.0f, 2.0f);
+    style.FramePadding  = ImVec2(12.0f, 12.0f);
+    style.ItemSpacing   = ImVec2(1.f, 1.f);
+
+    colors[ImGuiCol_WindowBg] = Theme::accent;
+    colors[ImGuiCol_ChildBg]  = Theme::accent_neg;
+    colors[ImGuiCol_PopupBg]  = Theme::accent_neg;
+    colors[ImGuiCol_FrameBg]  = Theme::accent_neg;
+
+    colors[ImGuiCol_Text]         = Theme::accent;
+
+    colors[ImGuiCol_Button]        = Theme::accent;
+    colors[ImGuiCol_ButtonHovered] = Theme::accent_neg;
+    colors[ImGuiCol_ButtonActive]  = Theme::accent;
+
+    // Combo field
+    colors[ImGuiCol_FrameBgHovered] = Theme::accent_low;
+    colors[ImGuiCol_FrameBgActive]  = Theme::accent;
+
+    colors[ImGuiCol_Header]         = Theme::accent_low;
+    colors[ImGuiCol_HeaderHovered]  = Theme::accent_med;;
+    colors[ImGuiCol_HeaderActive]   = Theme::accent_low;
+
+    colors[ImGuiCol_Separator]        = Theme::border;
+    colors[ImGuiCol_SeparatorHovered] = Theme::accent_high;
+    colors[ImGuiCol_SeparatorActive]  = Theme::accent;
+
+    colors[ImGuiCol_ScrollbarBg]          = Theme::accent_low;  // track
+    colors[ImGuiCol_ScrollbarGrab]        = Theme::accent_med;  // thumb, idle
+    colors[ImGuiCol_ScrollbarGrabHovered] = Theme::accent_high;  // thumb, hovered
+    colors[ImGuiCol_ScrollbarGrabActive]  = Theme::accent;      // thumb, dragged
+
+    colors[ImGuiCol_Border] = Theme::border;
+    colors[ImGuiCol_BorderShadow] = ImVec4(0, 0, 0, 0);
+}
+
 static GLFWwindow *win;
 ImFont* g_small_font = nullptr;
 
@@ -31,11 +88,11 @@ bool platform_init(const char *title, int w, int h)
 
     // 1. Load the main font (16px) for the code editor and other stuff
     ImGui::GetIO().Fonts->AddFontFromFileTTF(
-        "/System/Library/Fonts/Menlo.ttc", 16.0f, nullptr, ranges);
+        "/System/Library/Fonts/Menlo.ttc", 19.0f, nullptr, ranges);
 
     // 2. Load the smaller font (12px) for the header logo
     g_small_font = ImGui::GetIO().Fonts->AddFontFromFileTTF(
-        "/System/Library/Fonts/Menlo.ttc", 9.0f, nullptr, ranges);
+        "/System/Library/Fonts/Menlo.ttc", 10.0f, nullptr, ranges);
 
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(win, true);
@@ -56,20 +113,22 @@ bool platform_begin_frame()
     ImGui::SetNextWindowPos(vp->WorkPos);
     ImGui::SetNextWindowSize(vp->WorkSize);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
-
     ImGui::Begin("root", nullptr,
-        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBringToFrontOnFocus
+    );
+
+    apply_style();
+
     return true;
 }
 
 void platform_end_frame()
 {
     ImGui::End();
-    ImGui::PopStyleVar(); // pop the zero window padding
-    ImGui::PopStyleColor();
 
     ImGui::Render();
 
