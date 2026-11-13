@@ -21,6 +21,7 @@ add_executable(veksel
     src/main.cpp
     src/platform.cpp
     src/VekselEngine.cpp
+    src/UI.cpp
     ${IMGUI}/imgui.cpp
     ${IMGUI}/imgui_draw.cpp
     ${IMGUI}/imgui_tables.cpp

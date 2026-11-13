@@ -236,6 +236,8 @@ void veksel::Engine::update()
         new_plugin = std::move(pending_plugin);
     }
 
+    write_log("[sys] New plugin ready. Waiting for audio thread.");
+
     // ask the audio thread to stop using the current plugin
     swap_acknowledged.store(false, std::memory_order_relaxed);
     swap_requested.store(true, std::memory_order_release);
@@ -244,9 +246,13 @@ void veksel::Engine::update()
     while (!swap_acknowledged.load(std::memory_order_acquire))
         std::this_thread::yield();
 
+    write_log("[sys] Audio thread acknowledged plugin swap.");
+
     // replace the old plugin with the new one
     // move assignment automatically cleans up the old plugin
     active_plugin = std::move(new_plugin);
+
+    write_log("[ok] Plugin successfully loaded.");
 
     // let the audio thread start processing again
     swap_requested.store(false, std::memory_order_release);
@@ -255,6 +261,10 @@ void veksel::Engine::update()
 // compile the users source code into a shared library
 veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
 {
+    write_log("[sys] Starting compilation.");
+    write_log("[sys] Source size: " + std::to_string(source.size()) + " bytes.");
+    write_log("[sys] Compiler: " + settings.compiler);
+
     namespace fs = std::filesystem;
 
     // create a temporary directory for this compilation
@@ -298,6 +308,7 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
         " > " + shell_quote(log_path.string()) +
         " 2>&1";
 
+    write_log("[sys] Running compiler.");
     // run the compiler
     int result = std::system(command.c_str());
 
@@ -315,10 +326,13 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
     // if compilation failed, clean up and keep the current plugin
     if (result != 0)
     {
+        write_log("[error] Compiler exited with status " + std::to_string(result) + ".");
         write_log("[error] Compilation failed.");
         fs::remove_all(dir);
         return {};
     }
+
+    write_log("[ok] Compilation completed.");
 
     // load the compiled plugin into memory
     void* handle = load_library(library_path);
@@ -446,6 +460,9 @@ void veksel::Engine::submit_source(const std::string& source)
         pending_source = source;
         has_pending_source = true;
     }
+
+    write_log("[sys] Compilation requested (" +
+              std::to_string(source.size()) + " bytes).");
 
     // wake the compiler thread
     source_condition_variable.notify_one();

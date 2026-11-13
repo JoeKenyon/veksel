@@ -1,92 +1,148 @@
 #pragma once
 
+#include "theme.h"
 #include <imgui.h>
 
 namespace Theme
 {
-    // Greys
-    inline const ImVec4 black       {0.000f, 0.000f, 0.000f, 1.0f};
-    inline const ImVec4 grey_dark   {0.100f, 0.100f, 0.100f, 1.0f};
-    inline const ImVec4 grey_darker {0.080f, 0.080f, 0.080f, 1.0f};
-    inline const ImVec4 grey        {0.200f, 0.200f, 0.200f, 1.0f};
-    inline const ImVec4 grey_light  {0.650f, 0.650f, 0.650f, 1.0f};
 
-    // Whites
-    inline const ImVec4 white       {0.900f, 0.900f, 0.900f, 1.0f};
-    inline const ImVec4 white_hot   {1.000f, 1.000f, 1.000f, 1.0f};
+    namespace Color
+    {
+        using Color = const ImVec4;
 
-    // Hot pink palette
-    inline const ImVec4 pink        {1.000f, 0.078f, 0.576f, 1.0f};
-    inline const ImVec4 pink_light  {1.000f, 0.412f, 0.706f, 1.0f};
-    inline const ImVec4 pink_hot    {1.000f, 0.000f, 0.498f, 1.0f};
-    inline const ImVec4 pink_neon   {1.000f, 0.000f, 1.000f, 1.0f};
-    inline const ImVec4 pink_dark   {0.788f, 0.000f, 0.408f, 1.0f};
-    inline const ImVec4 pink_deep   {0.400f, 0.000f, 0.200f, 1.0f};
-    inline const ImVec4 pink_muted  {0.600f, 0.180f, 0.380f, 1.0f};
+        // Greys
+        inline Color black       {0.025f, 0.025f, 0.035f, 1.0f};
+        inline Color grey_dark   {0.055f, 0.055f, 0.070f, 1.0f};
+        inline Color grey_darker {0.035f, 0.035f, 0.045f, 1.0f};
+        inline Color grey        {0.120f, 0.120f, 0.145f, 1.0f};
+        inline Color grey_light  {0.550f, 0.550f, 0.600f, 1.0f};
+        inline Color white       {0.850f, 0.850f, 0.890f, 1.0f};
+        inline Color white_hot   {1.000f, 1.000f, 1.000f, 1.0f};
 
-    // Accent colours
-    inline const ImVec4 accent      = pink_dark;
-    inline const ImVec4 accent_neg  = black;
-    inline const ImVec4 accent_text = white;
+        // Pink palette
+        inline Color pink {0.929f, 0.055f, 0.447f, 1.0f};
+        inline Color pink_light  {1.000f, 0.300f, 0.600f, 1.0f};
+        inline Color pink_hot    {1.000f, 0.100f, 0.500f, 1.0f};
+        inline Color pink_neon   {1.000f, 0.000f, 0.800f, 1.0f};
+        inline Color pink_dark   {0.650f, 0.025f, 0.280f, 1.0f};
+        inline Color pink_darker {0.350f, 0.015f, 0.150f, 1.0f};
+        inline Color pink_deep   {0.160f, 0.010f, 0.070f, 1.0f};
+        inline Color pink_muted  {0.400f, 0.100f, 0.230f, 1.0f};
 
-    inline const ImVec4 accent_low  {accent.x, accent.y, accent.z, 0.2f};
-    inline const ImVec4 accent_med  {accent.x, accent.y, accent.z, 0.4f};
-    inline const ImVec4 accent_high {accent.x, accent.y, accent.z, 0.8f};
+        inline Color green  {0.200f, 0.850f, 0.400f, 1.0f};
+        inline Color yellow {1.000f, 0.800f, 0.200f, 1.0f};
 
-    inline const ImVec4 accent_neg_low  {accent_neg.x, accent_neg.y, accent_neg.z, 0.5f};
-    inline const ImVec4 accent_neg_med  {accent_neg.x, accent_neg.y, accent_neg.z, 0.7f};
-    inline const ImVec4 accent_neg_high {accent_neg.x, accent_neg.y, accent_neg.z, 0.9f};
-}
+        // Main
+        inline Color Text = white;
 
-inline void apply_theme()
-{
-    ImGuiStyle& s = ImGui::GetStyle();
+        inline Color    Accent = pink;
+        inline Color AccentLow = grey_darker;
+        inline Color AccentMed = grey_dark;
+        inline Color AccentNeg = grey_darker;
 
-    // Rounding
-    s.WindowRounding = 0.0f;
-    s.ChildRounding  = 0.0f;
-    s.PopupRounding  = 0.0f;
-    s.FrameRounding  = 0.0f;
-    s.ScrollbarRounding = 0.0f;
-    s.GrabRounding      = 0.0f;
+        // Main window
+        inline Color MainWindowBg     = Accent;
+        inline Color MainWindowBorder = black;
 
-    // Borders
-    s.WindowBorderSize = 0.0f;
-    s.ChildBorderSize  = 0.0f;
-    s.FrameBorderSize  = 1.0f;
-    s.PopupBorderSize  = 1.0f;
+        // Panels
+        inline Color PanelBg     = AccentNeg;
+        inline Color PanelBorder = grey;
 
-    // Spacing
-    s.WindowPadding = ImVec2(10.0f, 10.0f);
-    s.FramePadding  = ImVec2(10.0f, 10.0f);
-    s.ItemSpacing   = ImVec2(0.0f, 0.0f);
+        // Buttons - normal
+        inline Color     ButtonBg = Accent;
+        inline Color ButtonBorder = Accent;
+        inline Color   ButtonText = PanelBg;
 
-    ImVec4* c = s.Colors;
+        // Buttons - hover
+        inline Color     ButtonBgHover = PanelBg;
+        inline Color ButtonBorderHover = PanelBg;
+        inline Color   ButtonTextHover = Accent;
 
-    c[ImGuiCol_WindowBg]            = Theme::black;
-    c[ImGuiCol_ChildBg]             = Theme::black;
-    c[ImGuiCol_PopupBg]             = Theme::accent_neg;
-    c[ImGuiCol_Border]              = Theme::accent;
-    c[ImGuiCol_BorderShadow]        = ImVec4(0, 0, 0, 0);
+        // Buttons - active
+        inline Color     ButtonBgActive = AccentMed;
+        inline Color ButtonBorderActive = pink_light;
+        inline Color   ButtonTextActive = white_hot;
 
-    c[ImGuiCol_Text]                = Theme::accent_text;
-    c[ImGuiCol_TextDisabled]        = Theme::grey_light;
+        // Combo - closed state
+        inline Color   ComboText = Text;
+        inline Color ComboIconBg = grey;
+        inline Color ComboBorder = grey_light;
+        inline Color ComboTextBg = grey_dark;
 
-    c[ImGuiCol_FrameBg]             = Theme::accent_neg;
-    c[ImGuiCol_FrameBgHovered]      = Theme::accent;
-    c[ImGuiCol_FrameBgActive]       = Theme::accent;
+        // Combo - hover state
+        inline Color   ComboTextHover = white_hot;
+        inline Color ComboIconBgHover = Accent;
+        inline Color ComboBorderHover = Accent;
+        inline Color ComboTextBgHover = grey;
 
-    c[ImGuiCol_Button]              = Theme::accent;
-    c[ImGuiCol_ButtonHovered]       = Theme::accent_neg;
-    c[ImGuiCol_ButtonActive]        = Theme::accent_neg;
+        // Combo - dropdown options
+        inline Color     ComboOptionText = Text;
+        inline Color       ComboOptionBg = pink_darker;
+        inline Color  ComboOptionBgHover = pink_dark;
+        inline Color ComboOptionBgActive = Accent;
 
-    c[ImGuiCol_Header]              = Theme::accent_med;
-    c[ImGuiCol_HeaderHovered]       = Theme::accent_low;
-    c[ImGuiCol_HeaderActive]        = Theme::accent_high;
+        // Combo - dropdown popup
+        inline Color     ComboPopupText = Text;
+        inline Color   ComboPopupBorder = Accent;
+        inline Color       ComboPopupBg = grey_dark;
+        inline Color  ComboPopupBgHover = grey;
+        inline Color ComboPopupBgActive = pink_darker;
 
-    c[ImGuiCol_Separator]            = Theme::accent;
-    c[ImGuiCol_ScrollbarBg]          = Theme::accent_low;
-    c[ImGuiCol_ScrollbarGrab]        = Theme::accent_neg_low;
-    c[ImGuiCol_ScrollbarGrabHovered] = Theme::accent_neg_med;
-    c[ImGuiCol_ScrollbarGrabActive]  = Theme::accent_neg;
+        // Settings popup
+        inline Color SettingsBg     = grey_dark;
+        inline Color SettingsBorder = Accent;
+    }
+
+
+
+    namespace Size
+    {
+        // Fonts
+        inline constexpr float LogoFontSize = 9.0f;
+        inline constexpr float TextFontSize = 17.0f;
+        inline constexpr float IconFontSize = 18.0f;
+
+        // Main window
+        inline constexpr ImVec2 MainWindowPadding = {5.0f, 5.0f};
+        inline constexpr float MainWindowBorder = 1.0f;
+
+        // Panels
+        inline constexpr ImVec2 PanelPadding = {10.0f, 10.0f};
+        inline constexpr float PanelBorder = 1.0f;
+        inline constexpr ImVec2 PanelSpacing = {5.0f, 5.0f};
+
+        // Header and layout
+        inline constexpr float HeaderHeight = 55.0f;
+        inline constexpr float LogHeight = 184.0f;
+
+        // editor
+        inline constexpr ImVec2 EditorPadding = {0.0f,0.f};
+
+        // Buttons
+        inline constexpr ImVec2 ButtonPadding = {10.0f, 6.0f};
+        inline constexpr float ButtonBorder = 1.0f;
+
+        // Combo box
+        inline constexpr ImVec2 ComboBoxPadding = {10.0f, 7.0f};
+        inline constexpr float ComboBoxBorder = 1.0f;
+
+        // Combo dropdown
+        inline constexpr ImVec2 ComboPopupPadding = {5.0f, 5.0f};
+        inline constexpr ImVec2 ComboPopupSpacing = {2.0f, 3.0f};
+        inline constexpr ImVec2 ComboOptionPadding = {8.0f, 5.0f};
+
+        // Settings popup
+        inline constexpr ImVec2 SettingsPadding = {12.0f, 12.0f};
+        inline constexpr float SettingsBorder = 1.0f;
+
+        // Rounding
+        inline constexpr float Rounding = 12.0f;
+        inline constexpr float MainWindowRounding = Rounding;
+        inline constexpr float PanelRounding = Rounding;
+        inline constexpr float ButtonRounding = Rounding;
+        inline constexpr float ComboBoxRounding = Rounding;
+        inline constexpr float ComboPopupRounding = Rounding;
+        inline constexpr float SettingsRounding = Rounding;
+    }
+
 }
