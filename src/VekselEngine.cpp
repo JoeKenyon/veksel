@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 #include <stdlib.h>
+#include <ctime>
 #include <unistd.h>
 
 namespace
@@ -450,13 +451,19 @@ void veksel::Engine::submit_source(const std::string& source)
     source_condition_variable.notify_one();
 }
 
-// add a message to the engine log
+// add a message to the engine log, prefixed with the current time
 void veksel::Engine::write_log(const std::string& message)
 {
-    std::lock_guard<std::mutex> lock(log_mutex);
-    log.push_back(message);
-}
+    const std::time_t t = std::time(nullptr);
+    std::tm tm{};
+    localtime_r(&t, &tm); // thread safe, called from the compiler thread
 
+    char stamp[16];
+    std::strftime(stamp, sizeof stamp, "%H:%M:%S ", &tm);
+
+    std::lock_guard<std::mutex> lock(log_mutex);
+    log.push_back(stamp + message);
+}
 // return a copy of the engine log
 std::vector<std::string> veksel::Engine::get_log() const
 {
