@@ -6,10 +6,16 @@ using namespace veksel;
 
 static bool custom_button(const char* label, ImVec2 size = ImVec2(0, 0))
 {
+    ImVec2 resolvedSize = size;
+    if (resolvedSize.y <= 0.0f)
+        resolvedSize.y = ImGui::GetFrameHeight();
+    if (resolvedSize.x <= 0.0f)
+        resolvedSize.x = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+
     // check if hovering
     const ImVec2 p = ImGui::GetCursorScreenPos();
     const bool isHover = ImGui::IsWindowHovered() &&
-        ImGui::IsMouseHoveringRect(p, ImVec2(p.x + size.x, p.y + size.y));
+        ImGui::IsMouseHoveringRect(p, ImVec2(p.x + resolvedSize.x, p.y + resolvedSize.y));
 
     // check if active
     const bool isActive = isHover && ImGui::IsMouseDown(ImGuiMouseButton_Left);
@@ -37,7 +43,7 @@ static bool custom_button(const char* label, ImVec2 size = ImVec2(0, 0))
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  buttonBg);
     ImGui::PushStyleColor(ImGuiCol_Text,          buttonText);
     ImGui::PushStyleColor(ImGuiCol_Border,        buttonBorder);
-    const bool pressed = ImGui::Button(label, size);
+    const bool pressed = ImGui::Button(label, resolvedSize);
     ImGui::PopStyleColor(5);
 
     return pressed;
@@ -291,18 +297,6 @@ void UI::drawSettingsPopup(ImVec2 anchor)
         return custom_combo(id, v, items, comboWidth);
     };
 
-    // helper lambda to build double null-terminated strings for custom_combo
-    auto buildItems = [](const auto& container, const char* suffix = "")
-    {
-        std::string result;
-        for (const auto& item : container)
-        {
-            result += std::to_string(item) + suffix;
-            result.push_back('\0');
-        }
-        return result;
-    };
-
     const char* inItems  = devices.inputNames.empty()  ? "No Inputs\0"  : devices.inputNames.c_str();
     const char* outItems = devices.outputNames.empty() ? "No Outputs\0" : devices.outputNames.c_str();
     const char* srItems  = devices.sampleRates.c_str();
@@ -313,10 +307,13 @@ void UI::drawSettingsPopup(ImVec2 anchor)
     bool changedSr  = field("Sample Rate",   "##sample_rate",   &sampleRate,   srItems);
     bool changedBuf = field("Buffer Size",   "##buffer_size",   &bufferSize,   bufItems);
 
-    if (changedIn || changedOut || changedSr || changedBuf)
+    ImGui::Spacing();
+
+    if (custom_button("Apply", ImVec2(comboWidth, 0.0f)))
     {
         int selectedInIdx  = (!devices.inputIndices.empty() && inputDevice < (int)devices.inputIndices.size()) ? devices.inputIndices[inputDevice] : -1;
         int selectedOutIdx = (!devices.outputIndices.empty() && outputDevice < (int)devices.outputIndices.size()) ? devices.outputIndices[outputDevice] : -1;
+
         int finalSr  = devices.sampleIndices[sampleRate];
         int finalBuf = devices.bufferIndices[bufferSize];
 

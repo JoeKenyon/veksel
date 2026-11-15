@@ -135,7 +135,7 @@ namespace Theme
         inline constexpr float SettingsBorder = 1.0f;
 
         // Rounding
-        inline constexpr float Rounding = 12.0f;
+        inline constexpr float Rounding = 9.0f;
         inline constexpr float MainWindowRounding = Rounding;
         inline constexpr float PanelRounding = Rounding;
         inline constexpr float ButtonRounding = Rounding;
