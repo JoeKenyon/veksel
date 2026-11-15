@@ -1,6 +1,5 @@
 #pragma once
 
-#include "theme.h"
 #include <imgui.h>
 
 namespace Theme

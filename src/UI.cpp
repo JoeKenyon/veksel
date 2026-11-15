@@ -2,6 +2,8 @@
 #include "Theme.h"
 #include "imgui.h"
 
+using namespace veksel;
+
 static bool custom_button(const char* label, ImVec2 size = ImVec2(0, 0))
 {
     // check if hovering
@@ -13,28 +15,28 @@ static bool custom_button(const char* label, ImVec2 size = ImVec2(0, 0))
     const bool isActive = isHover && ImGui::IsMouseDown(ImGuiMouseButton_Left);
 
     // idle look first, then override if hovered or pressed
-    ImVec4 button_text   = Theme::Color::ButtonText;
-    ImVec4 button_bg     = Theme::Color::ButtonBg;
-    ImVec4 button_border = Theme::Color::ButtonBorder;
+    ImVec4 buttonText   = Theme::Color::ButtonText;
+    ImVec4 buttonBg     = Theme::Color::ButtonBg;
+    ImVec4 buttonBorder = Theme::Color::ButtonBorder;
 
     if (isActive)
     {
-        button_text   = Theme::Color::ButtonTextActive;
-        button_bg     = Theme::Color::ButtonBgActive;
-        button_border = Theme::Color::ButtonBorderActive;
+        buttonText   = Theme::Color::ButtonTextActive;
+        buttonBg     = Theme::Color::ButtonBgActive;
+        buttonBorder = Theme::Color::ButtonBorderActive;
     }
     else if (isHover)
     {
-        button_text   = Theme::Color::ButtonTextHover;
-        button_bg     = Theme::Color::ButtonBgHover;
-        button_border = Theme::Color::ButtonBorderHover;
+        buttonText   = Theme::Color::ButtonTextHover;
+        buttonBg     = Theme::Color::ButtonBgHover;
+        buttonBorder = Theme::Color::ButtonBorderHover;
     }
 
-    ImGui::PushStyleColor(ImGuiCol_Button,        button_bg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_bg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  button_bg);
-    ImGui::PushStyleColor(ImGuiCol_Text,          button_text);
-    ImGui::PushStyleColor(ImGuiCol_Border,        button_border);
+    ImGui::PushStyleColor(ImGuiCol_Button,        buttonBg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonBg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  buttonBg);
+    ImGui::PushStyleColor(ImGuiCol_Text,          buttonText);
+    ImGui::PushStyleColor(ImGuiCol_Border,        buttonBorder);
     const bool pressed = ImGui::Button(label, size);
     ImGui::PopStyleColor(5);
 
@@ -58,7 +60,7 @@ static bool custom_combo(const char* label, int* current, const char* items, flo
     }
 
     // Calculate actual frame height, including custom padding and border
-    const float combo_height =
+    const float comboHeight =
         ImGui::GetFontSize() +
         Theme::Size::ComboBoxPadding.y * 2.0f +
         Theme::Size::ComboBoxBorder * 2.0f;
@@ -69,24 +71,24 @@ static bool custom_combo(const char* label, int* current, const char* items, flo
         ImGui::IsWindowHovered() &&
         ImGui::IsMouseHoveringRect(
             p,
-            ImVec2(p.x + width, p.y + combo_height)
+            ImVec2(p.x + width, p.y + comboHeight)
         );
 
-    const ImVec4 combo_text    = isHover ? Theme::Color::ComboTextHover    : Theme::Color::ComboText;
-    const ImVec4 combo_icon_bg = isHover ? Theme::Color::ComboIconBgHover  : Theme::Color::ComboIconBg;
-    const ImVec4 combo_border  = isHover ? Theme::Color::ComboBorderHover  : Theme::Color::ComboBorder;
-    const ImVec4 combo_text_bg = isHover ? Theme::Color::ComboTextBgHover  : Theme::Color::ComboTextBg;
+    const ImVec4 comboText   = isHover ? Theme::Color::ComboTextHover    : Theme::Color::ComboText;
+    const ImVec4 comboIconBg = isHover ? Theme::Color::ComboIconBgHover  : Theme::Color::ComboIconBg;
+    const ImVec4 comboBorder = isHover ? Theme::Color::ComboBorderHover  : Theme::Color::ComboBorder;
+    const ImVec4 comboTextBg = isHover ? Theme::Color::ComboTextBgHover  : Theme::Color::ComboTextBg;
 
     ImGui::SetNextItemWidth(width);
 
-    ImGui::PushStyleColor(ImGuiCol_Text, combo_text);
-    ImGui::PushStyleColor(ImGuiCol_Border, combo_border);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, combo_text_bg);
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, combo_text_bg);
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, combo_text_bg);
-    ImGui::PushStyleColor(ImGuiCol_Button, combo_icon_bg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, combo_icon_bg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, combo_icon_bg);
+    ImGui::PushStyleColor(ImGuiCol_Text, comboText);
+    ImGui::PushStyleColor(ImGuiCol_Border, comboBorder);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, comboTextBg);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, comboTextBg);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, comboTextBg);
+    ImGui::PushStyleColor(ImGuiCol_Button, comboIconBg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, comboIconBg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, comboIconBg);
 
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, Theme::Size::ComboBoxBorder);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Theme::Size::ComboBoxPadding);
@@ -139,8 +141,8 @@ static bool custom_combo(const char* label, int* current, const char* items, flo
 
 
 
-UI::UI(veksel::Engine& engine)
-    : engine(engine)
+UI::UI(Engine& engine, Audio& audio)
+    : m_engine(engine), m_audio(audio)
 {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -151,28 +153,28 @@ UI::UI(veksel::Engine& engine)
         0
     };
 
-    mainFont = io.Fonts->AddFontFromFileTTF(
+    m_mainFont = io.Fonts->AddFontFromFileTTF(
         "/System/Library/Fonts/Menlo.ttc", Theme::Size::TextFontSize, nullptr, ranges);
 
-    logoFont = io.Fonts->AddFontFromFileTTF(
+    m_logoFont = io.Fonts->AddFontFromFileTTF(
         "/System/Library/Fonts/Menlo.ttc", Theme::Size::LogoFontSize, nullptr, ranges);
 
-    iconFont = io.Fonts->AddFontFromFileTTF(
+    m_iconFont = io.Fonts->AddFontFromFileTTF(
         "/System/Library/Fonts/Menlo.ttc", Theme::Size::IconFontSize, nullptr, ranges);
 
-    io.FontDefault = mainFont;
+    io.FontDefault = m_mainFont;
 
     // editor highlights as C since the modules are c
-    text_editor.SetLanguage(TextEditor::LookupLanguage("C"));
+    m_textEditor.SetLanguage(TextEditor::LookupLanguage("C"));
 
     // language is const so cast it away to add our own identifiers
-    auto c_lang = const_cast<TextEditor::Language*>(text_editor.GetLanguage());
+    auto cLang = const_cast<TextEditor::Language*>(m_textEditor.GetLanguage());
 
     // so veksel_main and input get highlighted like known names
-    if (c_lang)
+    if (cLang)
     {
-        c_lang->identifiers.insert("veksel_main");
-        c_lang->identifiers.insert("input");
+        cLang->identifiers.insert("veksel_main");
+        cLang->identifiers.insert("input");
     }
 
     // dark palette but pure black bg, white text, grey comments
@@ -190,17 +192,17 @@ UI::UI(veksel::Engine& engine)
 
     auto set = [&](TextEditor::Color c, ImU32 v) { p[static_cast<int>(c)] = v; };
 
-    text_editor.SetPalette(p);
+    m_textEditor.SetPalette(p);
 
     // starter code, passthrough
-    text_editor.SetText(
+    m_textEditor.SetText(
         "veksel_main\n"
         "{\n"
         "    return input;\n"
         "}\n"
     );
 
-    engine.submit_source(text_editor.GetText());
+    engine.submitSource(m_textEditor.GetText());
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -239,9 +241,9 @@ void UI::render()
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Theme::Size::PanelSpacing);
 
 
-    draw_header();
-    draw_editor();
-    draw_log();
+    drawHeader();
+    drawEditor();
+    drawLog();
 
     ImGui::End();
 
@@ -249,16 +251,25 @@ void UI::render()
     ImGui::PopStyleColor();
 }
 
-static void draw_settings_popup(ImVec2 anchor)
+void UI::drawSettingsPopup(ImVec2 anchor)
 {
-    static int output_device = 0, input_device = 0, sample_rate = 1, buffer_size = 2;
+    static int outputDevice = 0, inputDevice = 0, sampleRate = 1, bufferSize = 2;
 
-    const float w  = 320.0f;
-    const float cw = w - Theme::Size::SettingsPadding.x * 2.0f;
+    static AudioDevices devices;
 
-    ImGui::SetNextWindowPos({anchor.x - w, anchor.y + 2.0f}, ImGuiCond_Appearing);
-    ImGui::SetNextWindowSize(ImVec2(w, 0.0f));
+    // get devices only when we start pop up
+    if (ImGui::IsWindowAppearing())
+    {
+        devices = m_audio.getDevices();
+    }
 
+    // width of each item
+    const float width  = 320.0f;
+    const float comboWidth = width - Theme::Size::SettingsPadding.x * 2.0f;
+
+    // set position and styles etc.
+    ImGui::SetNextWindowPos({anchor.x - width, anchor.y + 2.0f}, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(width, 0.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::SettingsPadding);
     ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, Theme::Size::SettingsBorder);
     ImGui::PushStyleColor(ImGuiCol_PopupBg, Theme::Color::SettingsBg);
@@ -267,25 +278,55 @@ static void draw_settings_popup(ImVec2 anchor)
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(2);
 
+    // if we are not open dont draw anything
     if (!open)
         return;
 
+    // lambda for drawing each combo and title
     auto field = [&](const char* label, const char* id, int* v, const char* items)
     {
         ImGui::TextColored(Theme::Color::Text, "%s", label);
-        ImGui::SetNextItemWidth(cw);
-        custom_combo(id, v, items, cw);
+        ImGui::SetNextItemWidth(comboWidth);
+        // use the custom comboBox
+        return custom_combo(id, v, items, comboWidth);
     };
 
-    field("Output Device", "##output_device", &output_device, "Default Output\0Device 1\0Device 2\0");
-    field("Input Device",  "##input_device",  &input_device,  "Default Input\0Device 1\0Device 2\0");
-    field("Sample Rate",   "##sample_rate",   &sample_rate,   "44100 Hz\0" "48000 Hz\0" "88200 Hz\0" "96000 Hz\0");
-    field("Buffer Size",   "##buffer_size",   &buffer_size,   "64\0" "128\0" "256\0" "512\0" "1024\0");
+    // helper lambda to build double null-terminated strings for custom_combo
+    auto buildItems = [](const auto& container, const char* suffix = "")
+    {
+        std::string result;
+        for (const auto& item : container)
+        {
+            result += std::to_string(item) + suffix;
+            result.push_back('\0');
+        }
+        return result;
+    };
+
+    const char* inItems  = devices.inputNames.empty()  ? "No Inputs\0"  : devices.inputNames.c_str();
+    const char* outItems = devices.outputNames.empty() ? "No Outputs\0" : devices.outputNames.c_str();
+    const char* srItems  = devices.sampleRates.c_str();
+    const char* bufItems = devices.bufferSizes.c_str();
+
+    bool changedIn  = field("Input Device",  "##input_device",  &inputDevice,  inItems);
+    bool changedOut = field("Output Device", "##output_device", &outputDevice, outItems);
+    bool changedSr  = field("Sample Rate",   "##sample_rate",   &sampleRate,   srItems);
+    bool changedBuf = field("Buffer Size",   "##buffer_size",   &bufferSize,   bufItems);
+
+    if (changedIn || changedOut || changedSr || changedBuf)
+    {
+        int selectedInIdx  = (!devices.inputIndices.empty() && inputDevice < (int)devices.inputIndices.size()) ? devices.inputIndices[inputDevice] : -1;
+        int selectedOutIdx = (!devices.outputIndices.empty() && outputDevice < (int)devices.outputIndices.size()) ? devices.outputIndices[outputDevice] : -1;
+        int finalSr  = devices.sampleIndices[sampleRate];
+        int finalBuf = devices.bufferIndices[bufferSize];
+
+        //m_audio.start(m_engine, selectedInIdx, selectedOutIdx, finalSr, finalBuf);
+    }
 
     ImGui::EndPopup();
 }
 
-void UI::draw_header()
+void UI::drawHeader()
 {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Theme::Color::PanelBg);
     ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::PanelBorder);
@@ -293,46 +334,46 @@ void UI::draw_header()
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, Theme::Size::PanelBorder);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::PanelPadding);
 
-    if(logoFont) ImGui::PushFont(logoFont);
-    const ImVec2 logo_size = ImGui::CalcTextSize(logo);
-    const float header_height = logo_size.y + Theme::Size::PanelPadding.y * 2.0f;
-    const float button_size = std::min(header_height * 0.5f, header_height - Theme::Size::PanelPadding.y * 2);
+    if(m_logoFont) ImGui::PushFont(m_logoFont);
+    const ImVec2 logoSize = ImGui::CalcTextSize(m_logo);
+    const float headerHeight = logoSize.y + Theme::Size::PanelPadding.y * 2.0f;
+    const float buttonSize = std::min(headerHeight * 0.5f, headerHeight - Theme::Size::PanelPadding.y * 2);
 
     ImGui::BeginChild("##header",
-        ImVec2(0.0f, header_height),
+        ImVec2(0.0f, headerHeight),
         ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
 
-    const float both_btns_w = button_size * 2.0f + Theme::Size::PanelPadding.x;
-    const float both_btns_x = ImGui::GetWindowWidth() - both_btns_w - Theme::Size::PanelPadding.x;
-    const float both_btns_y = (ImGui::GetWindowHeight() - button_size) * 0.5f;
+    const float bothBtnsW = buttonSize * 2.0f + Theme::Size::PanelPadding.x;
+    const float bothBtnsX = ImGui::GetWindowWidth() - bothBtnsW - Theme::Size::PanelPadding.x;
+    const float bothBtnsY = (ImGui::GetWindowHeight() - buttonSize) * 0.5f;
 
     ImGui::PushStyleColor(ImGuiCol_Text, Theme::Color::Text);
     // Header contents
-    ImGui::TextUnformatted(logo);
-    if(logoFont) ImGui::PopFont();
+    ImGui::TextUnformatted(m_logo);
+    if(m_logoFont) ImGui::PopFont();
 
     ImGui::PopStyleColor();
 
     // padding as spacing between buttons
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Theme::Size::PanelPadding);
-    ImGui::SetCursorPos(ImVec2(both_btns_x, both_btns_y));
-    if(iconFont) ImGui::PushFont(iconFont);
+    ImGui::SetCursorPos(ImVec2(bothBtnsX, bothBtnsY));
+    if(m_iconFont) ImGui::PushFont(m_iconFont);
 
     // compile button
-    if (custom_button("▶", {button_size,button_size}))
+    if (custom_button("▶", {buttonSize,buttonSize}))
     {
-        engine.submit_source(text_editor.GetText());
+        m_engine.submitSource(m_textEditor.GetText());
     };
 
     ImGui::SameLine();
 
     // settings button
-    if (custom_button("⚙", ImVec2(button_size, button_size)))
+    if (custom_button("⚙", ImVec2(buttonSize, buttonSize)))
         ImGui::OpenPopup("##settings");
 
-    if (iconFont) ImGui::PopFont();
+    if (m_iconFont) ImGui::PopFont();
 
-    draw_settings_popup(ImGui::GetItemRectMax());
+    drawSettingsPopup(ImGui::GetItemRectMax());
 
     ImGui::PopStyleVar();   // item spacing
 
@@ -342,7 +383,7 @@ void UI::draw_header()
     ImGui::PopStyleColor(2);
 }
 
-void UI::draw_editor()
+void UI::drawEditor()
 {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Theme::Color::PanelBg);
     ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::PanelBorder);
@@ -350,14 +391,14 @@ void UI::draw_editor()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::PanelPadding);
     ImGui::BeginChild( "##editor", {-1,ImGui::GetContentRegionAvail().y * 0.75f},ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Theme::Size::EditorPadding);
-    text_editor.Render("##source", ImVec2(-1, -1), true);
+    m_textEditor.Render("##source", ImVec2(-1, -1), true);
     ImGui::PopStyleVar();
     ImGui::EndChild();
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(2);
 }
 
-void UI::draw_log()
+void UI::drawLog()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {Theme::Size::TextFontSize * 0.5f, Theme::Size::TextFontSize * 0.5f});
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Theme::Color::PanelBg);
@@ -367,7 +408,7 @@ void UI::draw_log()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::PanelPadding);
     ImGui::BeginChild( "##log", {-1,-1}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
 
-    for (const auto& line : engine.get_log())
+    for (const auto& line : m_engine.getLog())
     {
         if (line.find("[error]") != std::string::npos)
             ImGui::TextColored(Theme::Color::pink, "%s", line.c_str());

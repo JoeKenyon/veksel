@@ -38,7 +38,7 @@ namespace veksel
         void stop();
 
         // Submit source code to be compiled in the background
-        void submit_source(const std::string& source);
+        void submitSource(const std::string& source);
 
         // Check for completed compilation and swap plugins
         // Call from the UI/control thread
@@ -46,13 +46,13 @@ namespace veksel
 
         // Process one audio sample
         // Call from the audio thread
-        float process_sample(float input);
+        float processSample(float input);
 
         // Return a copy of the engine log
-        std::vector<std::string> get_log() const;
+        std::vector<std::string> getLog() const;
 
         // Clear all messages from the log
-        void clear_log();
+        void clearLog();
 
     private:
         // Function signature expected from a compiled plugin
@@ -90,40 +90,40 @@ namespace veksel
         };
 
         // Wait for submitted source code and compile it
-        void compiler_loop();
+        void compilerLoop();
 
         // Compile source code and return the loaded plugin
-        Plugin compile_source(const std::string& source);
+        Plugin compileSource(const std::string& source);
 
         // Add a message to the engine log
-        void write_log(const std::string& message);
+        void writeLog(const std::string& message);
 
         // Background compiler thread
-        std::atomic<bool> running = false;
-        std::thread compiler_thread;
+        std::atomic<bool> m_running = false;
+        std::thread m_compilerThread;
 
         // Source code waiting to be compiled
-        std::mutex source_mutex;
-        std::condition_variable source_condition_variable;
-        std::string pending_source;
-        bool has_pending_source = false;
+        std::mutex m_sourceMutex;
+        std::condition_variable m_sourceConditionVariable;
+        std::string m_pendingSource;
+        bool m_hasPendingSource = false;
 
         // Newly compiled plugin waiting to be installed
-        std::mutex plugin_mutex;
-        Plugin pending_plugin;
+        std::mutex m_pluginMutex;
+        Plugin m_pendingPlugin;
 
         // Plugin currently being used by the audio thread
-        Plugin active_plugin;
+        Plugin m_activePlugin;
 
         // Used to safely swap plugins between the UI and audio threads
-        std::atomic<bool> swap_requested = false;
-        std::atomic<bool> swap_acknowledged = false;
+        std::atomic<bool> m_swapRequested = false;
+        std::atomic<bool> m_swapAcknowledged = false;
 
         // Engine log
-        mutable std::mutex log_mutex;
-        std::vector<std::string> log;
+        mutable std::mutex m_logMutex;
+        std::vector<std::string> m_log;
 
         // Compiler configuration
-        Settings settings;
+        Settings m_settings;
     };
 }

@@ -1,4 +1,3 @@
-
 #include "VekselEngine.h"
 
 #ifdef _WIN32
@@ -15,10 +14,11 @@
 #include <system_error>
 #include <thread>
 #include <utility>
-#include <vector>
 #include <stdlib.h>
 #include <ctime>
 #include <unistd.h>
+
+using namespace veksel;
 
 namespace
 {
@@ -131,13 +131,13 @@ namespace
 
 // plugin destructor
 // automatically unloads the library and removes its temporary directory
-veksel::Engine::Plugin::~Plugin()
+Engine::Plugin::~Plugin()
 {
     cleanup();
 }
 
 // clean up everything owned by this plugin
-void veksel::Engine::Plugin::cleanup() noexcept
+void Engine::Plugin::cleanup() noexcept
 {
     // unload the library first
     if (handle)
@@ -159,7 +159,7 @@ void veksel::Engine::Plugin::cleanup() noexcept
 
 // move constructor
 // transfer ownership of the plugin instead of copying it
-veksel::Engine::Plugin::Plugin(Plugin&& other) noexcept
+Engine::Plugin::Plugin(Plugin&& other) noexcept
 {
     function = std::exchange(other.function, nullptr);
     handle = std::exchange(other.handle, nullptr);
@@ -168,7 +168,7 @@ veksel::Engine::Plugin::Plugin(Plugin&& other) noexcept
 
 // move assignment
 // clean up anything we currently own before taking ownership of the new plugin
-veksel::Engine::Plugin& veksel::Engine::Plugin::operator=(Plugin&& other) noexcept
+Engine::Plugin& Engine::Plugin::operator=(Plugin&& other) noexcept
 {
     if (this != &other)
     {
@@ -183,87 +183,87 @@ veksel::Engine::Plugin& veksel::Engine::Plugin::operator=(Plugin&& other) noexce
 }
 
 // create the engine with the supplied settings
-veksel::Engine::Engine(Settings settings)
-    : settings(std::move(settings))
+Engine::Engine(Settings settings)
+    : m_settings(std::move(settings))
 {
 }
 
 // default constructor uses the default settings
-veksel::Engine::Engine()
+Engine::Engine()
     : Engine(Settings{})
 {
 }
 
 // stop the compiler thread when the engine is destroyed
-veksel::Engine::~Engine()
+Engine::~Engine()
 {
     stop();
 }
 
 // process a single audio sample
 // this gets called by the audio callback
-float veksel::Engine::process_sample(float input)
+float Engine::processSample(float input)
 {
     // if a plugin swap has been requested
     // tell the ui thread we are no longer using the old plugin
-    if (swap_requested.load(std::memory_order_acquire))
+    if (m_swapRequested.load(std::memory_order_acquire))
     {
-        swap_acknowledged.store(true, std::memory_order_release);
+        m_swapAcknowledged.store(true, std::memory_order_release);
         return input;
     }
 
     // if no plugin is loaded just pass the input through
-    if (!active_plugin.function)
+    if (!m_activePlugin.function)
         return input;
 
     // run the sample through the active plugin
-    return active_plugin.function(input);
+    return m_activePlugin.function(input);
 }
 
 // check if there is a new plugin ready to be swapped in
 // this gets called from the ui thread
-void veksel::Engine::update()
+void Engine::update()
 {
-    Plugin new_plugin;
+    Plugin newPlugin;
 
     {
         // get the newly compiled plugin
-        std::lock_guard<std::mutex> lock(plugin_mutex);
+        std::lock_guard<std::mutex> lock(m_pluginMutex);
 
-        if (!pending_plugin)
+        if (!m_pendingPlugin)
             return;
 
-        new_plugin = std::move(pending_plugin);
+        newPlugin = std::move(m_pendingPlugin);
     }
 
-    write_log("[sys] New plugin ready. Waiting for audio thread.");
+    writeLog("[sys] New plugin ready. Waiting for audio thread.");
 
     // ask the audio thread to stop using the current plugin
-    swap_acknowledged.store(false, std::memory_order_relaxed);
-    swap_requested.store(true, std::memory_order_release);
+    m_swapAcknowledged.store(false, std::memory_order_relaxed);
+    m_swapRequested.store(true, std::memory_order_release);
 
     // wait until the audio thread acknowledges the request
-    while (!swap_acknowledged.load(std::memory_order_acquire))
+    while (!m_swapAcknowledged.load(std::memory_order_acquire))
         std::this_thread::yield();
 
-    write_log("[sys] Audio thread acknowledged plugin swap.");
+    writeLog("[sys] Audio thread acknowledged plugin swap.");
 
     // replace the old plugin with the new one
     // move assignment automatically cleans up the old plugin
-    active_plugin = std::move(new_plugin);
+    m_activePlugin = std::move(newPlugin);
 
-    write_log("[ok] Plugin successfully loaded.");
+    writeLog("[ok] Plugin successfully loaded.");
 
     // let the audio thread start processing again
-    swap_requested.store(false, std::memory_order_release);
+    m_swapRequested.store(false, std::memory_order_release);
 }
 
 // compile the users source code into a shared library
-veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
+Engine::Plugin Engine::compileSource(const std::string& source)
 {
-    write_log("[sys] Starting compilation.");
-    write_log("[sys] Source size: " + std::to_string(source.size()) + " bytes.");
-    write_log("[sys] Compiler: " + settings.compiler);
+    writeLog("[sys] Starting compilation.");
+    writeLog("[sys] Source size: " + std::to_string(source.size()) + " bytes.");
+    writeLog("[sys] Compiler: " + m_settings.compiler);
 
     namespace fs = std::filesystem;
 
@@ -272,7 +272,7 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
 
     if (dir.empty())
     {
-        write_log("[error] Failed to create temporary directory.");
+        writeLog("[error] Failed to create temporary directory.");
         return {};
     }
 
@@ -288,7 +288,7 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
 
         if (!file)
         {
-            write_log("[error] Failed to write source file.");
+            writeLog("[error] Failed to write source file.");
             fs::remove_all(dir);
             return {};
         }
@@ -299,7 +299,7 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
     // build the compiler command
     // use the compiler specified in the engine settings
     std::string command =
-        shell_quote(settings.compiler) +
+        shell_quote(m_settings.compiler) +
         " -O2"
         " -dynamiclib"
         " -fPIC"
@@ -308,7 +308,7 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
         " > " + shell_quote(log_path.string()) +
         " 2>&1";
 
-    write_log("[sys] Running compiler.");
+    writeLog("[sys] Running compiler.");
     // run the compiler
     int result = std::system(command.c_str());
 
@@ -320,26 +320,26 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
         output << file.rdbuf();
 
         if (!output.str().empty())
-            write_log(output.str());
+            writeLog(output.str());
     }
 
     // if compilation failed, clean up and keep the current plugin
     if (result != 0)
     {
-        write_log("[error] Compiler exited with status " + std::to_string(result) + ".");
-        write_log("[error] Compilation failed.");
+        writeLog("[error] Compiler exited with status " + std::to_string(result) + ".");
+        writeLog("[error] Compilation failed.");
         fs::remove_all(dir);
         return {};
     }
 
-    write_log("[ok] Compilation completed.");
+    writeLog("[ok] Compilation completed.");
 
     // load the compiled plugin into memory
     void* handle = load_library(library_path);
 
     if (!handle)
     {
-        write_log("[error] Failed to load plugin.");
+        writeLog("[error] Failed to load plugin.");
         fs::remove_all(dir);
         return {};
     }
@@ -352,14 +352,14 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
     // if the function doesn't exist, unload the library and clean up
     if (!function)
     {
-        write_log("[error] Failed to find plugin function.");
+        writeLog("[error] Failed to find plugin function.");
 
         unload_library(handle);
         fs::remove_all(dir);
         return {};
     }
 
-    write_log("[ok] Compilation successful.");
+    writeLog("[ok] Compilation successful.");
 
     // build the plugin object
     // it now owns the library handle and temporary directory
@@ -372,104 +372,104 @@ veksel::Engine::Plugin veksel::Engine::compile_source(const std::string& source)
 }
 
 // background thread responsible for compiling submitted source code
-void veksel::Engine::compiler_loop()
+void Engine::compilerLoop()
 {
-    while (running)
+    while (m_running)
     {
         std::string source;
 
         // wait until new source code is submitted
         {
-            std::unique_lock<std::mutex> lock(source_mutex);
+            std::unique_lock<std::mutex> lock(m_sourceMutex);
 
-            source_condition_variable.wait(lock, [this]
+            m_sourceConditionVariable.wait(lock, [this]
             {
-                return !running || has_pending_source;
+                return !m_running || m_hasPendingSource;
             });
 
             // stop if the engine is shutting down
-            if (!running)
+            if (!m_running)
                 break;
 
             // take the submitted source and clear the pending slot
-            source = std::move(pending_source);
-            has_pending_source = false;
+            source = std::move(m_pendingSource);
+            m_hasPendingSource = false;
         }
 
         // compile outside the mutex so the ui can submit more code
-        Plugin plugin = compile_source(source);
+        Plugin plugin = compileSource(source);
 
         // compilation failed, keep using the current plugin
         if (!plugin)
             continue;
 
         // don't publish a plugin if the engine is stopping
-        if (!running)
+        if (!m_running)
             break;
 
         // publish the newly compiled plugin for the ui thread to pick up
         {
-            std::lock_guard<std::mutex> lock(plugin_mutex);
-            pending_plugin = std::move(plugin);
+            std::lock_guard<std::mutex> lock(m_pluginMutex);
+            m_pendingPlugin = std::move(plugin);
         }
     }
 }
 
 // start the background compiler thread
-void veksel::Engine::start()
+void Engine::start()
 {
     // don't start another thread if we're already running
-    if (running.load())
+    if (m_running.load())
         return;
 
     // join the previous thread if it has already finished
-    if (compiler_thread.joinable())
-        compiler_thread.join();
+    if (m_compilerThread.joinable())
+        m_compilerThread.join();
 
-    running.store(true);
+    m_running.store(true);
 
     // start the compiler thread
-    compiler_thread = std::thread(&Engine::compiler_loop, this);
+    m_compilerThread = std::thread(&Engine::compilerLoop, this);
 }
 
 // stop the background compiler thread
-void veksel::Engine::stop()
+void Engine::stop()
 {
     {
         // tell the compiler thread to stop
-        std::lock_guard<std::mutex> lock(source_mutex);
-        running.store(false);
+        std::lock_guard<std::mutex> lock(m_sourceMutex);
+        m_running.store(false);
     }
 
     // wake the thread in case it is waiting for source code
-    source_condition_variable.notify_one();
+    m_sourceConditionVariable.notify_one();
 
     // wait for the compiler thread to finish
-    if (compiler_thread.joinable())
-        compiler_thread.join();
+    if (m_compilerThread.joinable())
+        m_compilerThread.join();
 }
 
 // submit new source code for compilation
 // the compiler thread will pick it up in the background
-void veksel::Engine::submit_source(const std::string& source)
+void Engine::submitSource(const std::string& source)
 {
     {
         // update the pending source under the mutex
-        std::lock_guard<std::mutex> lock(source_mutex);
+        std::lock_guard<std::mutex> lock(m_sourceMutex);
 
-        pending_source = source;
-        has_pending_source = true;
+        m_pendingSource = source;
+        m_hasPendingSource = true;
     }
 
-    write_log("[sys] Compilation requested (" +
+    writeLog("[sys] Compilation requested (" +
               std::to_string(source.size()) + " bytes).");
 
     // wake the compiler thread
-    source_condition_variable.notify_one();
+    m_sourceConditionVariable.notify_one();
 }
 
 // add a message to the engine log, prefixed with the current time
-void veksel::Engine::write_log(const std::string& message)
+void Engine::writeLog(const std::string& message)
 {
     const std::time_t t = std::time(nullptr);
     std::tm tm{};
@@ -478,19 +478,19 @@ void veksel::Engine::write_log(const std::string& message)
     char stamp[16];
     std::strftime(stamp, sizeof stamp, "%H:%M:%S ", &tm);
 
-    std::lock_guard<std::mutex> lock(log_mutex);
-    log.push_back(stamp + message);
+    std::lock_guard<std::mutex> lock(m_logMutex);
+    m_log.push_back(stamp + message);
 }
 // return a copy of the engine log
-std::vector<std::string> veksel::Engine::get_log() const
+std::vector<std::string> Engine::getLog() const
 {
-    std::lock_guard<std::mutex> lock(log_mutex);
-    return log;
+    std::lock_guard<std::mutex> lock(m_logMutex);
+    return m_log;
 }
 
 // clear all messages from the engine log
-void veksel::Engine::clear_log()
+void Engine::clearLog()
 {
-    std::lock_guard<std::mutex> lock(log_mutex);
-    log.clear();
+    std::lock_guard<std::mutex> lock(m_logMutex);
+    m_log.clear();
 }
