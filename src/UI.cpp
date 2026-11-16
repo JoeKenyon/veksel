@@ -307,7 +307,20 @@ void UI::drawSettingsPopup(ImVec2 anchor)
     bool changedSr  = field("Sample Rate",   "##sample_rate",   &sampleRate,   srItems);
     bool changedBuf = field("Buffer Size",   "##buffer_size",   &bufferSize,   bufItems);
 
+    // Track if any field was modified
+    static bool hasChanges = false;
+    if (ImGui::IsWindowAppearing())
+        hasChanges = false;
+
+    if (changedIn || changedOut || changedSr || changedBuf) hasChanges = true;
+
     ImGui::Spacing();
+
+    // If there are no changes, dim the button or disable interactions
+    if (!hasChanges)
+    {
+        ImGui::BeginDisabled();
+    }
 
     if (custom_button("Apply", ImVec2(comboWidth, 0.0f)))
     {
@@ -317,7 +330,13 @@ void UI::drawSettingsPopup(ImVec2 anchor)
         int finalSr  = devices.sampleIndices[sampleRate];
         int finalBuf = devices.bufferIndices[bufferSize];
 
-        //m_audio.start(m_engine, selectedInIdx, selectedOutIdx, finalSr, finalBuf);
+        m_audio.start(m_engine, selectedInIdx, selectedOutIdx, finalSr, finalBuf);
+        ImGui::CloseCurrentPopup();
+    }
+
+    if (!hasChanges)
+    {
+        ImGui::EndDisabled();
     }
 
     ImGui::EndPopup();

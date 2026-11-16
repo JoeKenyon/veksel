@@ -52,8 +52,9 @@ int main()
     }
 
     // clean shutdown
-    engine.stop();
     audio.shutdown();
+    engine.stop();
+
     platform_shutdown();
 
     return 0;
