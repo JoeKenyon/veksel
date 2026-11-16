@@ -2,9 +2,9 @@ name: CI (macOS)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
@@ -16,6 +16,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           submodules: recursive
+
+      - name: Install graphics and audio dependencies
+        run: brew install glfw portaudio
 
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
