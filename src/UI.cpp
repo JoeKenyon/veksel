@@ -2,6 +2,9 @@
 #include "Theme.h"
 #include "imgui.h"
 
+#include <algorithm>
+#include <cstring>
+
 using namespace veksel;
 
 static bool custom_button(const char* label, ImVec2 size = ImVec2(0, 0))
@@ -186,18 +189,6 @@ UI::UI(Engine& engine, Audio& audio)
     // dark palette but pure black bg, white text, grey comments
     TextEditor::Palette p = TextEditor::GetDarkPalette();
 
-    auto u32 = [](ImVec4 c, float alpha = -1.0f)
-    {
-        if (alpha >= 0.0f) c.w = alpha;
-        return ImGui::ColorConvertFloat4ToU32(c);
-    };
-
-    const ImU32 green = IM_COL32( 61, 220, 132, 255);
-    const ImU32 amber = IM_COL32(230, 180,  80, 255);
-    const ImU32 blue  = IM_COL32( 97, 175, 239, 255);
-
-    auto set = [&](TextEditor::Color c, ImU32 v) { p[static_cast<int>(c)] = v; };
-
     m_textEditor.SetPalette(p);
 
     // starter code, passthrough
@@ -241,11 +232,13 @@ void UI::render()
         ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus
     );
+    // pop all three colors pushed above now that Begin() has consumed them.
+    // keeping the color stack balanced at this point avoids the fragile
+    // push-here/pop-at-end pattern.
     ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor(2);
+    ImGui::PopStyleColor(3);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Theme::Size::PanelSpacing);
-
 
     drawHeader();
     drawEditor();
@@ -254,7 +247,6 @@ void UI::render()
     ImGui::End();
 
     ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
 }
 
 void UI::drawSettingsPopup(ImVec2 anchor)
@@ -262,12 +254,6 @@ void UI::drawSettingsPopup(ImVec2 anchor)
     static int outputDevice = 0, inputDevice = 0, sampleRate = 1, bufferSize = 2;
 
     static AudioDevices devices;
-
-    // get devices only when we start pop up
-    if (ImGui::IsWindowAppearing())
-    {
-        devices = m_audio.getDevices();
-    }
 
     // width of each item
     const float width  = 320.0f;
@@ -288,6 +274,22 @@ void UI::drawSettingsPopup(ImVec2 anchor)
     if (!open)
         return;
 
+    // IsWindowAppearing() must be checked after BeginPopup, otherwise it refers
+    // to the parent window and the device list would never refresh.
+    static bool hasChanges = false;
+    if (ImGui::IsWindowAppearing())
+    {
+        devices = m_audio.getDevices();
+        hasChanges = false;
+
+        // clamp the persisted selection indices to the available lists
+        auto clamp = [](int& v, size_t n) { if (n == 0) v = 0; else if (v >= (int)n) v = (int)n - 1; };
+        clamp(inputDevice,  devices.inputIndices.size());
+        clamp(outputDevice, devices.outputIndices.size());
+        clamp(sampleRate,   devices.sampleIndices.size());
+        clamp(bufferSize,   devices.bufferIndices.size());
+    }
+
     // lambda for drawing each combo and title
     auto field = [&](const char* label, const char* id, int* v, const char* items)
     {
@@ -297,8 +299,8 @@ void UI::drawSettingsPopup(ImVec2 anchor)
         return custom_combo(id, v, items, comboWidth);
     };
 
-    const char* inItems  = devices.inputNames.empty()  ? "No Inputs\0"  : devices.inputNames.c_str();
-    const char* outItems = devices.outputNames.empty() ? "No Outputs\0" : devices.outputNames.c_str();
+    const char* inItems  = devices.inputNames.c_str();
+    const char* outItems = devices.outputNames.c_str();
     const char* srItems  = devices.sampleRates.c_str();
     const char* bufItems = devices.bufferSizes.c_str();
 
@@ -306,11 +308,6 @@ void UI::drawSettingsPopup(ImVec2 anchor)
     bool changedOut = field("Output Device", "##output_device", &outputDevice, outItems);
     bool changedSr  = field("Sample Rate",   "##sample_rate",   &sampleRate,   srItems);
     bool changedBuf = field("Buffer Size",   "##buffer_size",   &bufferSize,   bufItems);
-
-    // Track if any field was modified
-    static bool hasChanges = false;
-    if (ImGui::IsWindowAppearing())
-        hasChanges = false;
 
     if (changedIn || changedOut || changedSr || changedBuf) hasChanges = true;
 
@@ -327,11 +324,21 @@ void UI::drawSettingsPopup(ImVec2 anchor)
         int selectedInIdx  = (!devices.inputIndices.empty() && inputDevice < (int)devices.inputIndices.size()) ? devices.inputIndices[inputDevice] : -1;
         int selectedOutIdx = (!devices.outputIndices.empty() && outputDevice < (int)devices.outputIndices.size()) ? devices.outputIndices[outputDevice] : -1;
 
-        int finalSr  = devices.sampleIndices[sampleRate];
-        int finalBuf = devices.bufferIndices[bufferSize];
+        int finalSr  = sampleRate   < (int)devices.sampleIndices.size() ? devices.sampleIndices[sampleRate]   : -1;
+        int finalBuf = bufferSize   < (int)devices.bufferIndices.size() ? devices.bufferIndices[bufferSize]   : -1;
 
-        m_audio.start(m_engine, selectedInIdx, selectedOutIdx, finalSr, finalBuf);
-        ImGui::CloseCurrentPopup();
+        if (finalSr < 0 || finalBuf < 0)
+        {
+            m_engine.writeLog("[error] Invalid sample rate or buffer size selection.");
+        }
+        else if (!m_audio.start(m_engine, selectedInIdx, selectedOutIdx, finalSr, finalBuf))
+        {
+            m_engine.writeLog("[error] Failed to restart audio with the selected devices.");
+        }
+        else
+        {
+            ImGui::CloseCurrentPopup();
+        }
     }
 
     if (!hasChanges)
@@ -422,28 +429,34 @@ void UI::drawLog()
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, Theme::Size::PanelBorder);
     ImGui::PushStyleColor(ImGuiCol_Text, Theme::Color::Text);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::PanelPadding);
-    ImGui::BeginChild( "##log", {-1,-1}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
 
-    for (const auto& line : m_engine.getLog())
+    if (ImGui::BeginChild("##log", {-1, -1}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding))
     {
-        if (line.find("[error]") != std::string::npos)
-            ImGui::TextColored(Theme::Color::pink, "%s", line.c_str());
+        const auto log = m_engine.getLog();
 
-        else if (line.find("[ok]") != std::string::npos)
-            ImGui::TextColored(Theme::Color::green, "%s", line.c_str());
+        // if new lines arrived since last frame, snap to the bottom so the
+        // user sees them even if they had scrolled up.
+        static size_t lastCount = 0;
+        const bool hasNew = !log.empty() && log.size() != lastCount;
+        lastCount = log.size();
 
-        else if (line.find("[warn]") != std::string::npos)
-            ImGui::TextColored(Theme::Color::yellow, "%s", line.c_str());
+        for (const auto& line : log)
+        {
+            if (line.find("[error]") != std::string::npos)
+                ImGui::TextColored(Theme::Color::pink, "%s", line.c_str());
+            else if (line.find("[ok]") != std::string::npos)
+                ImGui::TextColored(Theme::Color::green, "%s", line.c_str());
+            else if (line.find("[warn]") != std::string::npos)
+                ImGui::TextColored(Theme::Color::yellow, "%s", line.c_str());
+            else if (line.find("[sys]") != std::string::npos)
+                ImGui::TextColored(Theme::Color::grey_light, "%s", line.c_str());
+            else
+                ImGui::TextUnformatted(line.c_str());
+        }
 
-        else if (line.find("[sys]") != std::string::npos)
-            ImGui::TextColored(Theme::Color::grey_light, "%s", line.c_str());
-
-        else
-            ImGui::TextUnformatted(line.c_str());
+        if (hasNew || ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f)
+            ImGui::SetScrollHereY(1.0f);
     }
-
-
-    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) ImGui::SetScrollHereY(1.0f);
 
     ImGui::EndChild();
 

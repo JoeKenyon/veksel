@@ -1,17 +1,16 @@
 #include "Audio.h"
 #include "VekselEngine.h"
 #include <csignal>
-#include <atomic>
 #include "platform.h"
 #include "UI.h"
 
-// flips when we need to bail out, main loop checks it every frame
-static std::atomic<bool> quit{false};
+// flips when we need to bail out, main loop checks it every frame.
+static volatile std::sig_atomic_t quit = 0;
 
 // ctrl+c in the terminal, just set the flag and let main clean up properly
 static void on_sigint(int)
 {
-    quit = true;
+    quit = 1;
 }
 
 int main()
@@ -51,7 +50,9 @@ int main()
         platform_end_frame();
     }
 
-    // clean shutdown
+    // clean shutdown.
+    // the audio stream must be stopped before the engine is destroyed so the
+    // portaudio callback can never run processSample() on a dead engine.
     audio.shutdown();
     engine.stop();
 

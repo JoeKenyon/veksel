@@ -4,6 +4,8 @@
 #include <cmath>
 #include <ctime>
 #include <cstring>
+#include <sstream>
+#include <string>
 #include <utility>
 
 using namespace veksel;
@@ -79,7 +81,9 @@ Engine::Plugin& Engine::Plugin::operator=(Plugin&& other) noexcept
     return *this;
 }
 
-// stop the compiler thread when the engine is destroyed
+// stop the compiler thread when the engine is destroyed.
+// the caller must stop the audio stream before destroying the engine,
+// so processSample() cannot run against a destroyed object.
 Engine::~Engine()
 {
     stop();
@@ -105,50 +109,52 @@ float Engine::processSample(float input)
     return m_activePlugin.function(input);
 }
 
-// check if there is a new plugin ready to be swapped in
-// this gets called from the ui thread
+// check whether a newly compiled plugin is ready to be installed
 void Engine::update()
 {
-    Plugin newPlugin;
+    // protect the pending plugin while checking or moving it
+    // the compiler uses the same mutex when publishing a new plugin.
+    std::lock_guard<std::mutex> lock(m_pluginMutex);
 
+    // nothing to install.
+    if (!m_pendingPlugin)
+        return;
+
+    // if a handover hasn't started yet, request one.
+    if (!m_swapRequested.load(std::memory_order_acquire))
     {
-        // get the newly compiled plugin
-        std::lock_guard<std::mutex> lock(m_pluginMutex);
+        writeLog("[sys] New plugin ready. Waiting for audio thread.");
 
-        if (!m_pendingPlugin)
-            return;
+        // clear any previous acknowledgement before requesting the swap.
+        m_swapAcknowledged.store(false, std::memory_order_relaxed);
 
-        newPlugin = std::move(m_pendingPlugin);
+        // tell the audio thread to stop using the active plugin
+        // and acknowledge when it reaches a safe point.
+        m_swapRequested.store(true, std::memory_order_release);
+
+        // check for the acknowledgement on the next UI frame.
+        return;
     }
 
-    writeLog("[sys] New plugin ready. Waiting for audio thread.");
+    // the audio thread hasn't reached a safe point yet.
+    // keep the pending plugin intact and check again next frame.
+    if (!m_swapAcknowledged.load(std::memory_order_acquire))
+        return;
 
-    // ask the audio thread to stop using the current plugin
-    m_swapAcknowledged.store(false, std::memory_order_relaxed);
-    m_swapRequested.store(true, std::memory_order_release);
+    writeLog("[sys] Audio thread acknowledged plugin swap.");
 
-    // wait until the audio thread acknowledges the request
-    // wait up to 1 second (1000ms) instead of spinning forever
-    int timeout = 1000;
-    while (!m_swapAcknowledged.load(std::memory_order_acquire) && timeout-- > 0)
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    // install the newly compiled plugin.
+    // move assignment destroys the old plugin and its TCC state,
+    // which is now safe because the audio thread acknowledged.
+    m_activePlugin = std::move(m_pendingPlugin);
 
-    if (m_swapAcknowledged.load(std::memory_order_acquire))
-        writeLog("[sys] Audio thread acknowledged plugin swap.");
-    else
-        writeLog("[warn] Audio thread timed out. Forcing swap.");
-
-    // replace the old plugin with the new one
-    // move assignment automatically cleans up the old plugin
-    m_activePlugin = std::move(newPlugin);
+    // allow the audio thread to start using the new plugin
+    m_swapRequested.store(false, std::memory_order_release);
 
     writeLog("[ok] Plugin successfully loaded.");
-
-    // let the audio thread start processing again
-    m_swapRequested.store(false, std::memory_order_release);
 }
 
-// compile the users source code into a shared library
+// compile the user's C source code into executable memory
 Engine::Plugin Engine::compileSource(const std::string& source)
 {
     writeLog("[sys] Starting TCC compilation.");
@@ -178,7 +184,7 @@ Engine::Plugin Engine::compileSource(const std::string& source)
     {
         writeLog("[error] Compilation failed.");
 
-        // Split errors by newline and log each line separately
+        // split errors by newline and log each line separately
         std::stringstream ss(errors.text);
         std::string line;
         while (std::getline(ss, line)) {
@@ -189,8 +195,8 @@ Engine::Plugin Engine::compileSource(const std::string& source)
         return {};
     }
 
-    // Link the maths functions users mgiht want
-    // TCC with TCC_OUTPUT_MEMORY does not auto-resolve libc symbols
+    // register the math functions exposed to user code.
+    // this ensures these functions can be resolved during relocation.
     auto add = [&](const char* name, void* fn) { tcc_add_symbol(state, name, fn); };
 
     add("sinf",   reinterpret_cast<void*>(sinf));
@@ -218,7 +224,7 @@ Engine::Plugin Engine::compileSource(const std::string& source)
     {
         writeLog("[error] Relocation failed.");
 
-        // Split errors by newline and log each line separately
+        // split errors by newline and log each line separately
         std::stringstream ss(errors.text);
         std::string line;
         while (std::getline(ss, line)) {
@@ -351,7 +357,12 @@ void Engine::writeLog(const std::string& message)
 {
     const std::time_t t = std::time(nullptr);
     std::tm tm{};
-    localtime_r(&t, &tm);
+
+    #if defined(_WIN32)
+        localtime_s(&tm, &t);
+    #else
+        localtime_r(&t, &tm);
+    #endif
 
     char stamp[16];
     std::strftime(stamp, sizeof stamp, "%H:%M:%S ", &tm);
@@ -359,10 +370,10 @@ void Engine::writeLog(const std::string& message)
     std::lock_guard<std::mutex> lock(m_logMutex);
     m_log.push_back(stamp + message);
 
-    // cap the log at 200 lines
+    // cap the log at 100 lines, dropping the oldest 50 when full
     if (m_log.size() > 100)
     {
-        m_log.erase(m_log.begin(), m_log.begin() + 50); // Drop the oldest 50
+        m_log.erase(m_log.begin(), m_log.begin() + 50);
     }
 }
 // return a copy of the engine log

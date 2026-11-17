@@ -29,13 +29,13 @@ namespace veksel
 
         PaStreamParameters inParams = {};
         inParams.device = (inputDev < 0) ? Pa_GetDefaultInputDevice() : inputDev;
-        inParams.channelCount = 1;
+        inParams.channelCount = 1;   // mono in: portaudio downmixes, matches the mono plugin ABI
         inParams.sampleFormat = paFloat32;
         inParams.suggestedLatency = 0.01;
 
         PaStreamParameters outParams = {};
         outParams.device = (outputDev < 0) ? Pa_GetDefaultOutputDevice() : outputDev;
-        outParams.channelCount = 2;
+        outParams.channelCount = 2;   // stereo out: the mono result is duplicated to both channels
         outParams.sampleFormat = paFloat32;
         outParams.suggestedLatency = 0.01;
 
@@ -50,7 +50,7 @@ namespace veksel
 
             for (unsigned long i = 0; i < frames; ++i)
             {
-                float sample = in ? in[i] : 0.0f;
+                float sample = in ? in[i] : 0.0f;   // mono in
                 sample = eng->processSample(sample);
 
                 if (!std::isfinite(sample))
@@ -58,7 +58,8 @@ namespace veksel
 
                 sample = std::clamp(sample, -1.0f, 1.0f);
 
-                out[i * 2] = sample;
+                // duplicate the mono result to both output channels
+                out[i * 2]     = sample;
                 out[i * 2 + 1] = sample;
             }
 
@@ -66,10 +67,14 @@ namespace veksel
         };
 
         if (Pa_OpenStream(&m_stream, inPtr, &outParams, sampleRate, bufferSize, paClipOff, callback, &engine) != paNoError)
+        {
+            engine.writeLog("[error] Failed to open audio stream.");
             return false;
+        }
 
         if (Pa_StartStream(m_stream) != paNoError)
         {
+            engine.writeLog("[error] Failed to start audio stream.");
             Pa_CloseStream(m_stream);
             m_stream = nullptr;
             return false;
@@ -98,7 +103,7 @@ namespace veksel
     {
         AudioDevices devices;
 
-        // populate PortAudio input/output devices
+        // populate portaudio input/output devices
         int count = Pa_GetDeviceCount();
         for (int i = 0; i < count; ++i)
         {
@@ -124,11 +129,12 @@ namespace veksel
         devices.inputNames.push_back('\0');
         devices.outputNames.push_back('\0');
 
-        // If no inputs/outputs found, provide a fallback string
+        // fallbacks must store both nul bytes, otherwise the multi-string walk
+        // in custom_combo reads past the end.
         if (devices.inputIndices.empty())
-            devices.inputNames = "No Inputs\0\0";
+            devices.inputNames.assign("No Inputs\0\0", 11);
         if (devices.outputIndices.empty())
-            devices.outputNames = "No Outputs\0\0";
+            devices.outputNames.assign("No Outputs\0\0", 12);
 
         // populate sample rates and buffer sizes configuration options
         const std::vector<int> sampleRatesList = { 44100, 48000, 88200, 96000 };
