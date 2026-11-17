@@ -128,10 +128,15 @@ void Engine::update()
     m_swapRequested.store(true, std::memory_order_release);
 
     // wait until the audio thread acknowledges the request
-    while (!m_swapAcknowledged.load(std::memory_order_acquire))
-        std::this_thread::yield();
+    // wait up to 1 second (1000ms) instead of spinning forever
+    int timeout = 1000;
+    while (!m_swapAcknowledged.load(std::memory_order_acquire) && timeout-- > 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-    writeLog("[sys] Audio thread acknowledged plugin swap.");
+    if (m_swapAcknowledged.load(std::memory_order_acquire))
+        writeLog("[sys] Audio thread acknowledged plugin swap.");
+    else
+        writeLog("[warn] Audio thread timed out. Forcing swap.");
 
     // replace the old plugin with the new one
     // move assignment automatically cleans up the old plugin
@@ -172,8 +177,14 @@ Engine::Plugin Engine::compileSource(const std::string& source)
     if (tcc_compile_string(state, fullSource.c_str()) == -1)
     {
         writeLog("[error] Compilation failed.");
-        if (!errors.text.empty())
-            writeLog(errors.text);
+
+        // Split errors by newline and log each line separately
+        std::stringstream ss(errors.text);
+        std::string line;
+        while (std::getline(ss, line)) {
+            if (!line.empty()) writeLog("[error] " + line);
+        }
+
         tcc_delete(state);
         return {};
     }
@@ -202,10 +213,18 @@ Engine::Plugin Engine::compileSource(const std::string& source)
     add("tanhf",  reinterpret_cast<void*>(tanhf));
 
     // relocate the plugin to the state
+    // relocate failure
     if (tcc_relocate(state) < 0)
     {
-        writeLog("[error] Compilation failed.");
-        if (!errors.text.empty()) writeLog(errors.text);
+        writeLog("[error] Relocation failed.");
+
+        // Split errors by newline and log each line separately
+        std::stringstream ss(errors.text);
+        std::string line;
+        while (std::getline(ss, line)) {
+            if (!line.empty()) writeLog("[error] " + line);
+        }
+
         tcc_delete(state);
         return {};
     }
@@ -332,13 +351,19 @@ void Engine::writeLog(const std::string& message)
 {
     const std::time_t t = std::time(nullptr);
     std::tm tm{};
-    localtime_r(&t, &tm); // thread safe, called from the compiler thread
+    localtime_r(&t, &tm);
 
     char stamp[16];
     std::strftime(stamp, sizeof stamp, "%H:%M:%S ", &tm);
 
     std::lock_guard<std::mutex> lock(m_logMutex);
     m_log.push_back(stamp + message);
+
+    // cap the log at 200 lines
+    if (m_log.size() > 100)
+    {
+        m_log.erase(m_log.begin(), m_log.begin() + 50); // Drop the oldest 50
+    }
 }
 // return a copy of the engine log
 std::vector<std::string> Engine::getLog() const

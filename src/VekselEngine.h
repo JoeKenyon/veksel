@@ -17,7 +17,7 @@ namespace veksel
     {
     public:
 
-        // Create the engine with default or custom settings
+        // Create the engine with default
         Engine() = default;
 
         // Stop the compiler thread and clean up when destroyed
