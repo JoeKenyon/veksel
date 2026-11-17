@@ -4,25 +4,21 @@
 #include <string>
 #include <vector>
 #include <thread>
-#include <filesystem>
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+
+// forward-declare so we don't pull libtcc.h
+struct TCCState;
 
 namespace veksel
 {
     class Engine
     {
     public:
-        // Settings used when compiling plugins
-        struct Settings
-        {
-            std::string compiler = "clang";
-        };
 
         // Create the engine with default or custom settings
-        Engine();
-        explicit Engine(Settings settings);
+        Engine() = default;
 
         // Stop the compiler thread and clean up when destroyed
         ~Engine();
@@ -62,8 +58,7 @@ namespace veksel
         struct Plugin
         {
             ProcessFunc function = nullptr;
-            void* handle = nullptr;
-            std::filesystem::path directory;
+            TCCState* tccState = nullptr;
 
             // Automatically clean up the plugin when destroyed
             ~Plugin();
@@ -79,10 +74,7 @@ namespace veksel
             Plugin& operator=(Plugin&& other) noexcept;
 
             // Check whether the plugin was loaded successfully
-            explicit operator bool() const
-            {
-                return handle != nullptr && function != nullptr;
-            }
+            explicit operator bool() const { return function != nullptr; }
 
         private:
             // Unload the library and remove its temporary directory
@@ -122,8 +114,5 @@ namespace veksel
         // Engine log
         mutable std::mutex m_logMutex;
         std::vector<std::string> m_log;
-
-        // Compiler configuration
-        Settings m_settings;
     };
 }

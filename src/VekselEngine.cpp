@@ -1,79 +1,15 @@
 #include "VekselEngine.h"
+#include "libtcc.h"
 
-#ifdef _WIN32
-    #include <windows.h>
-#else
-    #include <dlfcn.h>
-#endif
-
-#include <random>
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
-#include <sstream>
-#include <system_error>
-#include <thread>
-#include <utility>
-#include <stdlib.h>
+#include <cmath>
 #include <ctime>
-#include <unistd.h>
+#include <cstring>
+#include <utility>
 
 using namespace veksel;
 
 namespace
 {
-    // load the compiled plugin into memory
-    // windows uses LoadLibrary, mac and linux use dlopen
-    void* load_library(const std::filesystem::path& path)
-    {
-    #ifdef _WIN32
-        return LoadLibraryW(path.c_str());
-    #else
-        return dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-    #endif
-    }
-
-    // unload the plugin from memory
-    // this should only happen when the audio thread is no longer using it
-    void unload_library(void* handle)
-    {
-        if (!handle)
-            return;
-
-    #ifdef _WIN32
-        FreeLibrary(static_cast<HMODULE>(handle));
-    #else
-        dlclose(handle);
-    #endif
-    }
-
-    // find a function inside the compiled plugin
-    // this is how we get access to the dsp function
-    void* load_function(void* handle, const char* name)
-    {
-    #ifdef _WIN32
-        return reinterpret_cast<void*>(
-            GetProcAddress(static_cast<HMODULE>(handle), name)
-        );
-    #else
-        return dlsym(handle, name);
-    #endif
-    }
-
-    // get the correct shared library extension for the current platform
-    std::string library_extension()
-    {
-    #ifdef _WIN32
-        return ".dll";
-    #elif __APPLE__
-        return ".dylib";
-    #else
-        return ".so";
-    #endif
-    }
-
-    // what gets added to the users plugin
-    // so they can focus on just writing their dsp code
     const char* PRELUDE =
         "#include <math.h>\n"
         "#include <stdlib.h>\n"
@@ -84,53 +20,28 @@ namespace
         "float veksel_process_mono(float input);\n"
         "#define veksel_main float veksel_process_mono(float input)\n";
 
-    // wrap strings in quotes so paths with spaces work in the compiler command
-    // this uses posix shell quoting
-    static std::string shell_quote(const std::string& value)
+    struct TccErrorBuffer
     {
-        std::string result = "'";
-        for (char c : value)
-        {
-            if (c == '\'')
-                result += "'\\''";
-            else
-                result += c;
-        }
-        result += "'";
-        return result;
-    }
+        std::string text;
+    };
 
-    // make a temporary directory for the compiled plugin
-    // use the systems temp directory instead of assuming a specific path
-    std::filesystem::path create_temp_directory()
+    void tcc_error_callback(void* opaque, const char* msg)
     {
-        namespace fs = std::filesystem;
+        auto* buf = static_cast<TccErrorBuffer*>(opaque);
+        if (!buf || !msg) return;
 
-        static std::mt19937_64 generator(std::random_device{}());
+        std::string m = msg;
+        const std::string needle = "<string>:";
+        std::string::size_type pos;
+        while ((pos = m.find(needle)) != std::string::npos)
+            m.replace(pos, needle.size(), "line ");
 
-        // try a few random directory names in case one already exists
-        for (int i = 0; i < 100; ++i)
-        {
-            fs::path directory =
-                fs::temp_directory_path() /
-                ("veksel-" + std::to_string(generator()));
-
-            std::error_code error;
-
-            // create_directory only succeeds if the directory doesn't already exist
-            if (fs::create_directory(directory, error))
-                return directory;
-
-            if (error && error != std::errc::file_exists)
-                break;
-        }
-
-        return {};
+        buf->text += m;
+        buf->text += '\n';
     }
 }
 
-// plugin destructor
-// automatically unloads the library and removes its temporary directory
+// plugin destructor, deletes the TCCState, which frees the JIT-compiled code
 Engine::Plugin::~Plugin()
 {
     cleanup();
@@ -139,31 +50,20 @@ Engine::Plugin::~Plugin()
 // clean up everything owned by this plugin
 void Engine::Plugin::cleanup() noexcept
 {
-    // unload the library first
-    if (handle)
+    if (tccState)
     {
-        unload_library(handle);
-        handle = nullptr;
+        tcc_delete(tccState);
+        tccState = nullptr;
     }
-
-    // remove the temporary directory and its files
-    if (!directory.empty())
-    {
-        std::error_code error;
-        std::filesystem::remove_all(directory, error);
-        directory.clear();
-    }
-
     function = nullptr;
 }
 
 // move constructor
 // transfer ownership of the plugin instead of copying it
 Engine::Plugin::Plugin(Plugin&& other) noexcept
+    : function(std::exchange(other.function, nullptr))
+    , tccState(std::exchange(other.tccState, nullptr))
 {
-    function = std::exchange(other.function, nullptr);
-    handle = std::exchange(other.handle, nullptr);
-    directory = std::move(other.directory);
 }
 
 // move assignment
@@ -173,25 +73,10 @@ Engine::Plugin& Engine::Plugin::operator=(Plugin&& other) noexcept
     if (this != &other)
     {
         cleanup();
-
         function = std::exchange(other.function, nullptr);
-        handle = std::exchange(other.handle, nullptr);
-        directory = std::move(other.directory);
+        tccState = std::exchange(other.tccState, nullptr);
     }
-
     return *this;
-}
-
-// create the engine with the supplied settings
-Engine::Engine(Settings settings)
-    : m_settings(std::move(settings))
-{
-}
-
-// default constructor uses the default settings
-Engine::Engine()
-    : Engine(Settings{})
-{
 }
 
 // stop the compiler thread when the engine is destroyed
@@ -261,113 +146,87 @@ void Engine::update()
 // compile the users source code into a shared library
 Engine::Plugin Engine::compileSource(const std::string& source)
 {
-    writeLog("[sys] Starting compilation.");
+    writeLog("[sys] Starting TCC compilation.");
     writeLog("[sys] Source size: " + std::to_string(source.size()) + " bytes.");
-    writeLog("[sys] Compiler: " + m_settings.compiler);
 
-    namespace fs = std::filesystem;
-
-    // create a temporary directory for this compilation
-    fs::path dir = create_temp_directory();
-
-    if (dir.empty())
+    // create a new tiny cc state
+    TCCState* state = tcc_new();
+    if (!state)
     {
-        writeLog("[error] Failed to create temporary directory.");
+        writeLog("[error] tcc_new() failed.");
         return {};
     }
 
-    // paths for the source file, compiled plugin and compiler output
-    fs::path source_path = dir / "plugin.c";
-    fs::path library_path = dir / ("plugin" + library_extension());
-    fs::path log_path = dir / "compiler.log";
+    TccErrorBuffer errors;
+    tcc_set_error_func(state, &errors, tcc_error_callback);
 
-    // write the prelude and users source code into the file
-    // #line makes compiler errors refer to the users code
+    tcc_set_lib_path(state, VEKSEL_TCC_LIB_PATH);
+
+    // memory output - no files written
+    tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
+
+    // compile prelude + user code
+    std::string fullSource = std::string(PRELUDE) + "\n#line 1\n" + source;
+
+    // compile the file
+    if (tcc_compile_string(state, fullSource.c_str()) == -1)
     {
-        std::ofstream file(source_path);
-
-        if (!file)
-        {
-            writeLog("[error] Failed to write source file.");
-            fs::remove_all(dir);
-            return {};
-        }
-
-        file << PRELUDE << "\n#line 1\n" << source;
-    }
-
-    // build the compiler command
-    // use the compiler specified in the engine settings
-    std::string command =
-        shell_quote(m_settings.compiler) +
-        " -O2"
-        " -dynamiclib"
-        " -fPIC"
-        " " + shell_quote(source_path.string()) +
-        " -o " + shell_quote(library_path.string()) +
-        " > " + shell_quote(log_path.string()) +
-        " 2>&1";
-
-    writeLog("[sys] Running compiler.");
-    // run the compiler
-    int result = std::system(command.c_str());
-
-    // read the compiler output and add it to the engine log
-    {
-        std::ifstream file(log_path);
-        std::stringstream output;
-
-        output << file.rdbuf();
-
-        if (!output.str().empty())
-            writeLog(output.str());
-    }
-
-    // if compilation failed, clean up and keep the current plugin
-    if (result != 0)
-    {
-        writeLog("[error] Compiler exited with status " + std::to_string(result) + ".");
         writeLog("[error] Compilation failed.");
-        fs::remove_all(dir);
+        if (!errors.text.empty())
+            writeLog(errors.text);
+        tcc_delete(state);
         return {};
     }
 
-    writeLog("[ok] Compilation completed.");
+    // Link the maths functions users mgiht want
+    // TCC with TCC_OUTPUT_MEMORY does not auto-resolve libc symbols
+    auto add = [&](const char* name, void* fn) { tcc_add_symbol(state, name, fn); };
 
-    // load the compiled plugin into memory
-    void* handle = load_library(library_path);
+    add("sinf",   reinterpret_cast<void*>(sinf));
+    add("cosf",   reinterpret_cast<void*>(cosf));
+    add("tanf",   reinterpret_cast<void*>(tanf));
+    add("fabsf",  reinterpret_cast<void*>(fabsf));
+    add("powf",   reinterpret_cast<void*>(powf));
+    add("expf",   reinterpret_cast<void*>(expf));
+    add("logf",   reinterpret_cast<void*>(logf));
+    add("log2f",  reinterpret_cast<void*>(log2f));
+    add("log10f", reinterpret_cast<void*>(log10f));
+    add("sqrtf",  reinterpret_cast<void*>(sqrtf));
+    add("floorf", reinterpret_cast<void*>(floorf));
+    add("ceilf",  reinterpret_cast<void*>(ceilf));
+    add("fmodf",  reinterpret_cast<void*>(fmodf));
+    add("atanf",  reinterpret_cast<void*>(atanf));
+    add("atan2f", reinterpret_cast<void*>(atan2f));
+    add("sinhf",  reinterpret_cast<void*>(sinhf));
+    add("coshf",  reinterpret_cast<void*>(coshf));
+    add("tanhf",  reinterpret_cast<void*>(tanhf));
 
-    if (!handle)
+    // relocate the plugin to the state
+    if (tcc_relocate(state) < 0)
     {
-        writeLog("[error] Failed to load plugin.");
-        fs::remove_all(dir);
+        writeLog("[error] Compilation failed.");
+        if (!errors.text.empty()) writeLog(errors.text);
+        tcc_delete(state);
         return {};
     }
 
-    // find the dsp function inside the compiled library
-    auto function = reinterpret_cast<ProcessFunc>(
-        load_function(handle, "veksel_process_mono")
+    // resolve the entry point
+    auto func = reinterpret_cast<ProcessFunc>(
+        tcc_get_symbol(state, "veksel_process_mono")
     );
 
-    // if the function doesn't exist, unload the library and clean up
-    if (!function)
+    if (!func)
     {
-        writeLog("[error] Failed to find plugin function.");
-
-        unload_library(handle);
-        fs::remove_all(dir);
+        writeLog("[error] Symbol 'veksel_process_mono' not found.");
+        tcc_delete(state);
         return {};
     }
 
     writeLog("[ok] Compilation successful.");
 
-    // build the plugin object
-    // it now owns the library handle and temporary directory
     Plugin plugin;
-    plugin.function = function;
-    plugin.handle = handle;
-    plugin.directory = std::move(dir);
-
+    plugin.function = func;
+    plugin.tccState = state;
     return plugin;
 }
 
