@@ -106,6 +106,7 @@ add_dependencies(veksel_core tinycc_build)
 
 target_compile_definitions(veksel_core PUBLIC
     VEKSEL_TCC_LIB_PATH="${TINYCC_BUILD}"
+    VEKSEL_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
 )
 
 target_include_directories(veksel_core PUBLIC
@@ -135,6 +136,8 @@ target_include_directories(veksel PRIVATE
     "${SRC_DIR}"
     "${TEXTEDITOR_DIR}"
 )
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(veksel PRIVATE
     veksel_core

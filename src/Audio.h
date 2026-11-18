@@ -39,7 +39,10 @@ namespace veksel
 
         bool start(Engine& engine, int inputDev = -1, int outputDev = -1, int sampleRate = 44100, int bufferSize = 64);
 
-        // stops and closes the stream.
+        // stops and closes the stream (keeps PortAudio initialized).
+        void stop();
+
+        // stops the stream and terminates PortAudio.
         void shutdown();
 
         // enumerates portaudio devices.

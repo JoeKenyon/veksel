@@ -1,482 +1,393 @@
 #include "UI.h"
-#include "Theme.h"
-#include "imgui.h"
 
-#include <algorithm>
+#include <fstream>
+#include <sstream>
 #include <string>
-#include <vector>
 
 using namespace veksel;
 
-static bool custom_button(const char* label, ImVec2 size = ImVec2(0, 0))
+namespace
 {
-    ImVec2 resolvedSize = size;
-    if (resolvedSize.y <= 0.0f)
-        resolvedSize.y = ImGui::GetFrameHeight();
-    if (resolvedSize.x <= 0.0f)
-        resolvedSize.x = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+    constexpr const char* Logo =
+        "██╗   ██╗███████╗██╗  ██╗███████╗███████╗██╗     \n"
+        "██║   ██║██╔════╝██║ ██╔╝██╔════╝██╔════╝██║     \n"
+        "██║   ██║█████╗  █████╔╝ ███████╗█████╗  ██║     \n"
+        "╚██╗ ██╔╝██╔══╝  ██╔═██╗ ╚════██║██╔══╝  ██║     \n"
+        " ╚████╔╝ ███████╗██║  ██╗███████║███████╗███████╗\n"
+        "  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝";
 
-    // check if hovering
-    const ImVec2 p = ImGui::GetCursorScreenPos();
-    const bool isHover = ImGui::IsWindowHovered() &&
-        ImGui::IsMouseHoveringRect(p, ImVec2(p.x + resolvedSize.x, p.y + resolvedSize.y));
+    // what a fresh editor starts with, just passes audio through
+    constexpr const char* StarterCode =
+        "veksel_main\n"
+        "{\n"
+        "    return input;\n"
+        "}\n";
 
-    // check if active
-    const bool isActive = isHover && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    constexpr const char* OpenTitle     = "Open File";
+    constexpr const char* SaveTitle     = "Save File";
+    constexpr const char* SettingsTitle = "Audio Settings";
 
-    // idle look first, then override if hovered or pressed
-    ImVec4 buttonText   = Theme::Color::ButtonText;
-    ImVec4 buttonBg     = Theme::Color::ButtonBg;
-    ImVec4 buttonBorder = Theme::Color::ButtonBorder;
-
-    if (isActive)
+    // pick a colour from the tag at the start of a log line
+    ImVec4 lineColor(const std::string& line)
     {
-        buttonText   = Theme::Color::ButtonTextActive;
-        buttonBg     = Theme::Color::ButtonBgActive;
-        buttonBorder = Theme::Color::ButtonBorderActive;
-    }
-    else if (isHover)
-    {
-        buttonText   = Theme::Color::ButtonTextHover;
-        buttonBg     = Theme::Color::ButtonBgHover;
-        buttonBorder = Theme::Color::ButtonBorderHover;
+        if (line.find("[error]") != std::string::npos) return {1.0f, 0.4f, 0.4f, 1.0f};
+        if (line.find("[ok]")    != std::string::npos) return {0.4f, 0.9f, 0.4f, 1.0f};
+        if (line.find("[warn]")  != std::string::npos) return {1.0f, 0.85f, 0.3f, 1.0f};
+        if (line.find("[sys]")   != std::string::npos) return ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+        return ImGui::GetStyleColorVec4(ImGuiCol_Text);
     }
 
-    ImGui::PushStyleColor(ImGuiCol_Button,        buttonBg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonBg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  buttonBg);
-    ImGui::PushStyleColor(ImGuiCol_Text,          buttonText);
-    ImGui::PushStyleColor(ImGuiCol_Border,        buttonBorder);
-    const bool pressed = ImGui::Button(label, resolvedSize);
-    ImGui::PopStyleColor(5);
-
-    return pressed;
-}
-
-
-static bool custom_combo(const char* label, int* current, const std::vector<std::string>& items, float width = 300.0f)
-{
-    const char* preview =
-        (*current >= 0 && *current < static_cast<int>(items.size()))
-            ? items[*current].c_str()
-            : "";
-
-    // Calculate actual frame height, including custom padding and border
-    const float comboHeight =
-        ImGui::GetFontSize() +
-        Theme::Size::ComboBoxPadding.y * 2.0f +
-        Theme::Size::ComboBoxBorder * 2.0f;
-
-    const ImVec2 p = ImGui::GetCursorScreenPos();
-
-    const bool isHover =
-        ImGui::IsWindowHovered() &&
-        ImGui::IsMouseHoveringRect(
-            p,
-            ImVec2(p.x + width, p.y + comboHeight)
-        );
-
-    const ImVec4 comboText   = isHover ? Theme::Color::ComboTextHover    : Theme::Color::ComboText;
-    const ImVec4 comboIconBg = isHover ? Theme::Color::ComboIconBgHover  : Theme::Color::ComboIconBg;
-    const ImVec4 comboBorder = isHover ? Theme::Color::ComboBorderHover  : Theme::Color::ComboBorder;
-    const ImVec4 comboTextBg = isHover ? Theme::Color::ComboTextBgHover  : Theme::Color::ComboTextBg;
-
-    ImGui::SetNextItemWidth(width);
-
-    ImGui::PushStyleColor(ImGuiCol_Text, comboText);
-    ImGui::PushStyleColor(ImGuiCol_Border, comboBorder);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, comboTextBg);
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, comboTextBg);
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, comboTextBg);
-    ImGui::PushStyleColor(ImGuiCol_Button, comboIconBg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, comboIconBg);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, comboIconBg);
-
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, Theme::Size::ComboBoxBorder);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Theme::Size::ComboBoxPadding);
-
-    const bool open = ImGui::BeginCombo(label, preview);
-
-    ImGui::PopStyleColor(8);
-    ImGui::PopStyleVar(2);
-
-    bool changed = false;
-
-    if (open)
+    // combo box for any list. getLabel turns an item into the text to show
+    template <typename Items, typename LabelFn>
+    bool combo(const char* id, int& current, const Items& items, LabelFn getLabel, float width)
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, Theme::Color::ComboOptionText);
-        ImGui::PushStyleColor(ImGuiCol_Header, Theme::Color::ComboOptionBg);
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Theme::Color::ComboOptionBgHover);
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive, Theme::Color::ComboOptionBgActive);
-        ImGui::PushStyleColor(ImGuiCol_PopupBg, Theme::Color::ComboPopupBg);
-        ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::ComboPopupBorder);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::ComboPopupPadding);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Theme::Size::ComboPopupSpacing);
+        const int count = static_cast<int>(items.size());
+        const std::string preview = current < count ? getLabel(items[current]) : "";
 
-        for (int i = 0; i < static_cast<int>(items.size()); ++i)
+        bool changed = false;
+        ImGui::SetNextItemWidth(width);
+
+        if (ImGui::BeginCombo(id, preview.c_str()))
         {
-            const bool selected = (i == *current);
-
-            ImGui::PushID(i);
-
-            if (ImGui::Selectable(items[i].c_str(), selected))
+            for (int i = 0; i < count; ++i)
             {
-                *current = i;
-                changed = true;
+                ImGui::PushID(i);
+
+                if (ImGui::Selectable(getLabel(items[i]).c_str(), i == current))
+                {
+                    current = i;
+                    changed = true;
+                }
+
+                ImGui::PopID();
             }
 
-            if (selected)
-                ImGui::SetItemDefaultFocus();
-
-            ImGui::PopID();
+            ImGui::EndCombo();
         }
 
-        ImGui::PopStyleColor(6);
-        ImGui::PopStyleVar(2);
-        ImGui::EndCombo();
+        return changed;
     }
 
-    return changed;
+    // index of the first item whose key matches value, or 0 if none do
+    template <typename Items, typename KeyFn>
+    int indexOf(const Items& items, int value, KeyFn getKey)
+    {
+        for (size_t i = 0; i < items.size(); ++i)
+            if (getKey(items[i]) == value)
+                return static_cast<int>(i);
+
+        return 0;
+    }
 }
-
-
 
 UI::UI(Engine& engine, Audio& audio, Log& log)
     : m_engine(engine), m_audio(audio), m_log(log)
 {
     ImGuiIO& io = ImGui::GetIO();
+    ImGui::GetStyle().FontSizeBase = 13.0f;
+    io.Fonts->AddFontDefaultVector();
 
-    static const ImWchar ranges[] =
-    {
-        0x20, 0x7F,
-        0x2500, 0x259F,
-        0
-    };
+    // just ascii and the box drawing blocks the logo needs
+    static const ImWchar ranges[] = { 0x20, 0x7F, 0x2500, 0x26FF, 0 };
+    const auto fontPath = std::filesystem::path(VEKSEL_ASSET_DIR) / "Menlo.ttc";
 
-    m_mainFont = io.Fonts->AddFontFromFileTTF(
-        "/System/Library/Fonts/Menlo.ttc", Theme::Size::TextFontSize, nullptr, ranges);
+    if (std::filesystem::exists(fontPath))
+        m_logoFont = io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), 16.0f, nullptr, ranges);
+    else
+        m_log.write("[warn] Font not found: " + fontPath.string());
 
-    m_logoFont = io.Fonts->AddFontFromFileTTF(
-        "/System/Library/Fonts/Menlo.ttc", Theme::Size::LogoFontSize, nullptr, ranges);
-
-    m_iconFont = io.Fonts->AddFontFromFileTTF(
-        "/System/Library/Fonts/Menlo.ttc", Theme::Size::IconFontSize, nullptr, ranges);
-
-    io.FontDefault = m_mainFont;
-
-    // editor highlights as C since the modules are c
+    // modules are c, so highlight them as c
     m_textEditor.SetLanguage(TextEditor::LookupLanguage("C"));
 
-    // language is const so cast it away to add our own identifiers
-    auto cLang = const_cast<TextEditor::Language*>(m_textEditor.GetLanguage());
-
-    // so veksel_main and input get highlighted like known names
-    if (cLang)
+    // language is const, cast it away so veksel_main and input look like known names
+    if (auto* lang = const_cast<TextEditor::Language*>(m_textEditor.GetLanguage()))
     {
-        cLang->identifiers.insert("veksel_main");
-        cLang->identifiers.insert("input");
+        lang->identifiers.insert("veksel_main");
+        lang->identifiers.insert("input");
     }
 
-    // dark palette but pure black bg, white text, grey comments
-    TextEditor::Palette p = TextEditor::GetDarkPalette();
-
-    m_textEditor.SetPalette(p);
-
-    // starter code, passthrough
-    m_textEditor.SetText(
-        "veksel_main\n"
-        "{\n"
-        "    return input;\n"
-        "}\n"
-    );
-
-    m_engine.submitSource(m_textEditor.GetText());
-
-    ImGuiStyle& style = ImGui::GetStyle();
-
-    style.WindowRounding = Theme::Size::MainWindowRounding;
-    style.ChildRounding = Theme::Size::PanelRounding;
-    style.FrameRounding = Theme::Size::ButtonRounding;
-    style.PopupRounding = Theme::Size::ComboPopupRounding;
+    m_textEditor.SetPalette(TextEditor::GetDarkPalette());
+    m_textEditor.SetText(StarterCode);
+    m_engine.submitSource(StarterCode);
 }
-
-
 
 void UI::render()
 {
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    // ctrl+r, or cmd+r on mac (imgui already swaps cmd into KeyCtrl there)
+    const ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_R, false))
+        compile();
 
+    // one window that fills the whole viewport
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
 
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, Theme::Color::MainWindowBg);
-    ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::MainWindowBorder);
-    ImGui::PushStyleColor(ImGuiCol_Text, Theme::Color::Text);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, Theme::Size::MainWindowBorder);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::MainWindowPadding);
     ImGui::Begin(
         "VekselMain",
         nullptr,
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus
     );
-    // pop all pushed state now that Begin() has consumed it
-    ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor(3);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Theme::Size::PanelSpacing);
+    // open any popup a button asked for last frame, has to happen here
+    // so the popup ids match the ones the modals use below
+    if (m_openPopup)
+    {
+        ImGui::OpenPopup(m_openPopup);
+        m_openPopup = nullptr;
+    }
 
     drawHeader();
     drawEditor();
     drawLog();
 
+    drawFileModal(OpenTitle, false);
+    drawFileModal(SaveTitle, true);
+    drawSettingsModal();
+
     ImGui::End();
-
-    ImGui::PopStyleVar();
 }
-
-
-void UI::drawSettingsPopup(ImVec2 anchor)
-{
-    static int outputDevice = 0, inputDevice = 0, sampleRate = 0, bufferSize = 0;
-
-    static AudioDevices devices;
-    static std::vector<std::string> inNames, outNames, srNames, bufNames;
-
-    const float width = 320.0f;
-    const float comboWidth = width - Theme::Size::SettingsPadding.x * 2.0f;
-
-    ImGui::SetNextWindowPos({anchor.x - width, anchor.y + 2.0f}, ImGuiCond_Appearing);
-    ImGui::SetNextWindowSize(ImVec2(width, 0.0f));
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::SettingsPadding);
-    ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, Theme::Size::SettingsBorder);
-    ImGui::PushStyleColor(ImGuiCol_PopupBg, Theme::Color::SettingsBg);
-    ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::SettingsBorder);
-
-    const bool open = ImGui::BeginPopup("##settings");
-
-    ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor(2);
-
-    if (!open)
-        return;
-
-    if (ImGui::IsWindowAppearing())
-    {
-        devices = m_audio.getDevices();
-
-        inNames.clear();
-        outNames.clear();
-        srNames.clear();
-        bufNames.clear();
-
-        for (const auto& d : devices.inputs)
-            inNames.push_back(d.name);
-
-        for (const auto& d : devices.outputs)
-            outNames.push_back(d.name);
-
-        for (int v : devices.sampleRates)
-            srNames.push_back(std::to_string(v) + " Hz");
-
-        for (int v : devices.bufferSizes)
-            bufNames.push_back(std::to_string(v));
-
-        const AudioSettings cur = m_audio.getSettings();
-
-        auto find = [](const auto& list, int value, auto getter) -> int
-        {
-            for (size_t i = 0; i < list.size(); ++i)
-            {
-                if (getter(list[i]) == value)
-                    return static_cast<int>(i);
-            }
-
-            return 0;
-        };
-
-        inputDevice = find(devices.inputs, cur.inputDevice,
-            [](const AudioDevice& d) { return d.index; });
-
-        outputDevice = find(devices.outputs, cur.outputDevice,
-            [](const AudioDevice& d) { return d.index; });
-
-        sampleRate = find(devices.sampleRates, cur.sampleRate,
-            [](int v) { return v; });
-
-        bufferSize = find(devices.bufferSizes, cur.bufferSize,
-            [](int v) { return v; });
-    }
-
-    auto field = [&](const char* label, const char* id, int* value,
-                     const std::vector<std::string>& items)
-    {
-        ImGui::TextColored(Theme::Color::Text, "%s", label);
-        return custom_combo(id, value, items, comboWidth);
-    };
-
-    field("Input Device", "##input_device", &inputDevice, inNames);
-    field("Output Device", "##output_device", &outputDevice, outNames);
-    field("Sample Rate", "##sample_rate", &sampleRate, srNames);
-    field("Buffer Size", "##buffer_size", &bufferSize, bufNames);
-
-    const AudioSettings current = m_audio.getSettings();
-
-    const int selectedInput =
-        inputDevice >= 0 && inputDevice < static_cast<int>(devices.inputs.size())
-            ? devices.inputs[inputDevice].index : -1;
-
-    const int selectedOutput =
-        outputDevice >= 0 && outputDevice < static_cast<int>(devices.outputs.size())
-            ? devices.outputs[outputDevice].index : -1;
-
-    const int selectedRate = !devices.sampleRates.empty()
-        ? devices.sampleRates[std::clamp(sampleRate, 0, static_cast<int>(devices.sampleRates.size()) - 1)]
-        : current.sampleRate;
-
-    const int selectedBuffer = !devices.bufferSizes.empty()
-        ? devices.bufferSizes[std::clamp(bufferSize, 0, static_cast<int>(devices.bufferSizes.size()) - 1)]
-        : current.bufferSize;
-
-    const bool hasChanges =
-        selectedInput != current.inputDevice ||
-        selectedOutput != current.outputDevice ||
-        selectedRate != current.sampleRate ||
-        selectedBuffer != current.bufferSize;
-
-    ImGui::Spacing();
-
-    if (!hasChanges)
-        ImGui::BeginDisabled();
-
-    if (custom_button("Apply", ImVec2(comboWidth, 0.0f)))
-    {
-        if (m_audio.start(m_engine, selectedInput, selectedOutput, selectedRate, selectedBuffer))
-            ImGui::CloseCurrentPopup();
-        else
-            m_log.write("[error] Failed to restart audio with the selected settings.");
-    }
-
-    if (!hasChanges)
-        ImGui::EndDisabled();
-
-    ImGui::EndPopup();
-}
-
 
 void UI::drawHeader()
 {
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, Theme::Color::PanelBg);
-    ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::PanelBorder);
+    const ImGuiStyle& style = ImGui::GetStyle();
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, Theme::Size::PanelBorder);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::PanelPadding);
+    // measure the logo with its own font so the header fits it
+    if (m_logoFont) ImGui::PushFont(m_logoFont, 9.0f);
 
-    if(m_logoFont) ImGui::PushFont(m_logoFont);
-    const ImVec2 logoSize = ImGui::CalcTextSize(m_logo);
-    const float headerHeight = logoSize.y + Theme::Size::PanelPadding.y * 2.0f;
-    const float buttonSize = std::min(headerHeight * 0.5f, headerHeight - Theme::Size::PanelPadding.y * 2);
+    const float headerH = ImGui::CalcTextSize(Logo).y + style.WindowPadding.y * 2.0f;
 
-    ImGui::BeginChild("##header",
-        ImVec2(0.0f, headerHeight),
-        ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
+    ImGui::BeginChild("##header", {0.0f, headerH}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
+    ImGui::TextUnformatted(Logo);
 
-    const float bothBtnsW = buttonSize * 2.0f + Theme::Size::PanelPadding.x;
-    const float bothBtnsX = ImGui::GetWindowWidth() - bothBtnsW - Theme::Size::PanelPadding.x;
-    const float bothBtnsY = (ImGui::GetWindowHeight() - buttonSize) * 0.5f;
+    if (m_logoFont) ImGui::PopFont();
 
-    ImGui::PushStyleColor(ImGuiCol_Text, Theme::Color::Text);
-    // Header contents
-    ImGui::TextUnformatted(m_logo);
-    if(m_logoFont) ImGui::PopFont();
+    // five same size buttons, pushed to the right and centred vertically
+    constexpr float btnW = 90.0f;
+    const float btnH = ImGui::GetFrameHeight();
+    const float totalW = btnW * 5.0f + style.ItemSpacing.x * 4.0f;
 
-    ImGui::PopStyleColor();
+    ImGui::SetCursorPos({
+        ImGui::GetWindowWidth() - totalW - style.WindowPadding.x,
+        (ImGui::GetWindowHeight() - btnH) * 0.5f
+    });
 
-    // padding as spacing between buttons
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Theme::Size::PanelPadding);
-    ImGui::SetCursorPos(ImVec2(bothBtnsX, bothBtnsY));
-    if(m_iconFont) ImGui::PushFont(m_iconFont);
-
-    // compile button
-    if (custom_button("▶", {buttonSize,buttonSize}))
-        m_engine.submitSource(m_textEditor.GetText());
+    if (ImGui::Button("Open", {btnW, btnH}))
+        m_openPopup = OpenTitle;
 
     ImGui::SameLine();
+    if (ImGui::Button("Save", {btnW, btnH}))
+        m_openPopup = SaveTitle;
 
-    // settings button
-    if (custom_button("⚙", ImVec2(buttonSize, buttonSize)))
-        ImGui::OpenPopup("##settings");
+    ImGui::SameLine();
+    if (ImGui::Button("Compile", {btnW, btnH}))
+        compile();
 
-    if (m_iconFont) ImGui::PopFont();
+    ImGui::SameLine();
+    if (ImGui::Button(m_audio.isRunning() ? "Audio On" : "Audio Off", {btnW, btnH}))
+        toggleAudio();
 
-    drawSettingsPopup(ImGui::GetItemRectMax());
-
-    ImGui::PopStyleVar();   // item spacing
+    ImGui::SameLine();
+    if (ImGui::Button("Settings", {btnW, btnH}))
+        m_openPopup = SettingsTitle;
 
     ImGui::EndChild();
-
-    ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor(2);
 }
 
 void UI::drawEditor()
 {
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, Theme::Color::PanelBg);
-    ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::PanelBorder);
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, Theme::Size::PanelBorder);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::PanelPadding);
-    ImGui::BeginChild( "##editor", {-1,ImGui::GetContentRegionAvail().y * 0.75f},ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Theme::Size::EditorPadding);
-    m_textEditor.Render("##source", ImVec2(-1, -1), true);
-    ImGui::PopStyleVar();
+    // editor gets 3/4 of what's left, the log takes the rest
+    const float height = ImGui::GetContentRegionAvail().y * 0.75f;
+
+    ImGui::BeginChild("##editor", {-1.0f, height}, ImGuiChildFlags_Borders);
+    m_textEditor.Render("##source", ImVec2(-1, -1), false);
     ImGui::EndChild();
-    ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor(2);
 }
 
 void UI::drawLog()
 {
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {Theme::Size::TextFontSize * 0.5f, Theme::Size::TextFontSize * 0.5f});
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, Theme::Color::PanelBg);
-    ImGui::PushStyleColor(ImGuiCol_Border, Theme::Color::PanelBorder);
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, Theme::Size::PanelBorder);
-    ImGui::PushStyleColor(ImGuiCol_Text, Theme::Color::Text);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::PanelPadding);
-
-    if (ImGui::BeginChild("##log", {-1, -1}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding))
+    if (ImGui::BeginChild("##log", {-1.0f, -1.0f}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding))
     {
         const auto lines = m_log.getLines();
 
-        // if new lines arrived since last frame, snap to the bottom so the
-        // user sees them even if they had scrolled up.
-        static size_t lastCount = 0;
-        const bool hasNew = !lines.empty() && lines.size() != lastCount;
-        lastCount = lines.size();
-
         for (const auto& line : lines)
-        {
-            if (line.find("[error]") != std::string::npos)
-                ImGui::TextColored(Theme::Color::pink, "%s", line.c_str());
-            else if (line.find("[ok]") != std::string::npos)
-                ImGui::TextColored(Theme::Color::green, "%s", line.c_str());
-            else if (line.find("[warn]") != std::string::npos)
-                ImGui::TextColored(Theme::Color::yellow, "%s", line.c_str());
-            else if (line.find("[sys]") != std::string::npos)
-                ImGui::TextColored(Theme::Color::grey_light, "%s", line.c_str());
-            else
-                ImGui::TextUnformatted(line.c_str());
-        }
+            ImGui::TextColored(lineColor(line), "%s", line.c_str());
 
-        if (hasNew || ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f)
+        // snap to the bottom whenever new lines show up
+        if (lines.size() != m_lastLogCount)
+        {
+            m_lastLogCount = lines.size();
             ImGui::SetScrollHereY(1.0f);
+        }
     }
 
     ImGui::EndChild();
+}
 
-    ImGui::PopStyleVar(3);
-    ImGui::PopStyleColor(3);
+void UI::drawFileModal(const char* title, bool saving)
+{
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+
+    if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    ImGui::TextUnformatted("Path");
+
+    // start typing straight away
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere();
+
+    ImGui::SetNextItemWidth(360.0f);
+    const bool enter = ImGui::InputText("##path", m_path, sizeof(m_path), ImGuiInputTextFlags_EnterReturnsTrue);
+
+    if (ImGui::Button(saving ? "Save" : "Open", {100.0f, 0.0f}) || enter)
+    {
+        if (saving) saveFile();
+        else        loadFile();
+
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::SameLine();
+
+    // modals don't close on escape by themselves
+    if (ImGui::Button("Cancel", {100.0f, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
+}
+
+void UI::drawSettingsModal()
+{
+    constexpr float width = 360.0f;
+
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+    ImGui::SetNextWindowSize({width, 0.0f});
+
+    if (!ImGui::BeginPopupModal(SettingsTitle, nullptr, ImGuiWindowFlags_NoResize))
+        return;
+
+    // refresh the device list each time the popup opens and
+    // preselect whatever the stream is using right now
+    if (ImGui::IsWindowAppearing())
+    {
+        m_devices = m_audio.getDevices();
+        const AudioSettings cur = m_audio.getSettings();
+
+        m_inputIdx  = indexOf(m_devices.inputs,      cur.inputDevice,  [](const AudioDevice& d) { return d.index; });
+        m_outputIdx = indexOf(m_devices.outputs,     cur.outputDevice, [](const AudioDevice& d) { return d.index; });
+        m_rateIdx   = indexOf(m_devices.sampleRates, cur.sampleRate,   [](int v) { return v; });
+        m_bufferIdx = indexOf(m_devices.bufferSizes, cur.bufferSize,   [](int v) { return v; });
+    }
+
+    const float comboW = width - ImGui::GetStyle().WindowPadding.x * 2.0f;
+
+    const auto deviceName = [](const AudioDevice& d) { return d.name; };
+    const auto hz         = [](int v) { return std::to_string(v) + " Hz"; };
+    const auto number     = [](int v) { return std::to_string(v); };
+
+    ImGui::TextUnformatted("Input Device");
+    combo("##in", m_inputIdx, m_devices.inputs, deviceName, comboW);
+
+    ImGui::TextUnformatted("Output Device");
+    combo("##out", m_outputIdx, m_devices.outputs, deviceName, comboW);
+
+    ImGui::TextUnformatted("Sample Rate");
+    combo("##rate", m_rateIdx, m_devices.sampleRates, hz, comboW);
+
+    ImGui::TextUnformatted("Buffer Size");
+    combo("##buffer", m_bufferIdx, m_devices.bufferSizes, number, comboW);
+
+    ImGui::Spacing();
+
+    // no devices in the list means -1, which lets audio pick the default.
+    // rates and buffers are fixed lists so those indices are always valid
+    const int in = m_inputIdx < static_cast<int>(m_devices.inputs.size())
+        ? m_devices.inputs[m_inputIdx].index : -1;
+    const int out = m_outputIdx < static_cast<int>(m_devices.outputs.size())
+        ? m_devices.outputs[m_outputIdx].index : -1;
+    const int rate = m_devices.sampleRates[m_rateIdx];
+    const int buffer = m_devices.bufferSizes[m_bufferIdx];
+
+    // apply is only useful if audio is off (so it can start) or something differs
+    const AudioSettings cur = m_audio.getSettings();
+    const bool changed =
+        !m_audio.isRunning() ||
+        in     != cur.inputDevice ||
+        out    != cur.outputDevice ||
+        rate   != cur.sampleRate ||
+        buffer != cur.bufferSize;
+
+    const float btnW = (comboW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+
+    ImGui::BeginDisabled(!changed);
+    if (ImGui::Button("Apply", {btnW, 0.0f}))
+    {
+        // audio logs its own errors, and puts the old settings back if this fails
+        if (m_audio.start(m_engine, in, out, rate, buffer))
+            ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Cancel", {btnW, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
+}
+
+void UI::compile()
+{
+    m_engine.submitSource(m_textEditor.GetText());
+}
+
+void UI::toggleAudio()
+{
+    if (m_audio.isRunning())
+    {
+        m_audio.stop();
+        m_log.write("[warn] Audio stopped.");
+        return;
+    }
+
+    // start again with whatever settings it had last
+    const AudioSettings s = m_audio.getSettings();
+    m_audio.start(m_engine, s.inputDevice, s.outputDevice, s.sampleRate, s.bufferSize);
+}
+
+void UI::loadFile()
+{
+    std::ifstream in(m_path);
+
+    if (!in)
+    {
+        m_log.write(std::string("[error] Could not open: ") + m_path);
+        return;
+    }
+
+    std::ostringstream text;
+    text << in.rdbuf();
+
+    // compile straight away so what you hear matches what you loaded
+    m_textEditor.SetText(text.str());
+    compile();
+
+    m_log.write(std::string("[ok] Loaded ") + m_path);
+}
+
+void UI::saveFile()
+{
+    std::ofstream out(m_path);
+    out << m_textEditor.GetText();
+
+    if (!out)
+    {
+        m_log.write(std::string("[error] Could not save: ") + m_path);
+        return;
+    }
+
+    m_log.write(std::string("[ok] Saved ") + m_path);
 }
