@@ -21,7 +21,10 @@ jobs:
         run: brew install glfw portaudio
 
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DVEKSEL_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build build --config Release
+
+      - name: Run tests
+        run: ctest --test-dir build -C Release --output-on-failure
