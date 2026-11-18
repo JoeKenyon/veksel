@@ -1,15 +1,15 @@
-[submodule "portaudio"]
-	path = portaudio
+[submodule "third_party/portaudio"]
+	path = third_party/portaudio
 	url = https://github.com/PortAudio/portaudio
-[submodule "tinycc"]
-	path = tinycc
+[submodule "third_party/tinycc"]
+	path = third_party/tinycc
 	url = https://github.com/TinyCC/tinycc.git
-[submodule "imgui"]
-	path = imgui
+[submodule "third_party/imgui"]
+	path = third_party/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "ImGuiColorTextEdit"]
-	path = ImGuiColorTextEdit
+[submodule "third_party/ImGuiColorTextEdit"]
+	path = third_party/ImGuiColorTextEdit
 	url = https://github.com/goossens/ImGuiColorTextEdit.git
-[submodule "glfw"]
-	path = glfw
+[submodule "third_party/glfw"]
+	path = third_party/glfw
 	url = https://github.com/glfw/glfw.git
