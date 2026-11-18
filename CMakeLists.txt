@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.16)
 project(veksel LANGUAGES C CXX)
 
@@ -13,11 +12,11 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SRC_DIR          "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(IMGUI_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/imgui")
-set(TEXTEDITOR_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/ImGuiColorTextEdit")
-set(GLFW_DIR         "${CMAKE_CURRENT_SOURCE_DIR}/glfw")
-set(PORTAUDIO_DIR    "${CMAKE_CURRENT_SOURCE_DIR}/portaudio")
-set(TINYCC_SOURCE    "${CMAKE_CURRENT_SOURCE_DIR}/tinycc")
+set(IMGUI_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")
+set(TEXTEDITOR_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ImGuiColorTextEdit")
+set(GLFW_DIR         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/glfw")
+set(PORTAUDIO_DIR    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/portaudio")
+set(TINYCC_SOURCE    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tinycc")
 set(TINYCC_BUILD     "${CMAKE_CURRENT_BINARY_DIR}/tinycc")
 
 # setup glfw
