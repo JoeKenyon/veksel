@@ -1,5 +1,5 @@
 
-#include "platform.h"
+#include "Platform.h"
 
 #include <GLFW/glfw3.h>
 

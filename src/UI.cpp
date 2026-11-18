@@ -3,7 +3,8 @@
 #include "imgui.h"
 
 #include <algorithm>
-#include <cstring>
+#include <string>
+#include <vector>
 
 using namespace veksel;
 
@@ -53,20 +54,12 @@ static bool custom_button(const char* label, ImVec2 size = ImVec2(0, 0))
 }
 
 
-static bool custom_combo(const char* label, int* current, const char* items, float width = 300.0f)
+static bool custom_combo(const char* label, int* current, const std::vector<std::string>& items, float width = 300.0f)
 {
-    // Find selected item
-    const char* preview = "";
-    int count = 0;
-
-    for (const char* it = items; *it; it += std::strlen(it) + 1, ++count)
-    {
-        if (count == *current)
-        {
-            preview = it;
-            break;
-        }
-    }
+    const char* preview =
+        (*current >= 0 && *current < static_cast<int>(items.size()))
+            ? items[*current].c_str()
+            : "";
 
     // Calculate actual frame height, including custom padding and border
     const float comboHeight =
@@ -120,15 +113,13 @@ static bool custom_combo(const char* label, int* current, const char* items, flo
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Theme::Size::ComboPopupPadding);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Theme::Size::ComboPopupSpacing);
 
-        int i = 0;
-
-        for (const char* it = items; *it; it += std::strlen(it) + 1, ++i)
+        for (int i = 0; i < static_cast<int>(items.size()); ++i)
         {
             const bool selected = (i == *current);
 
             ImGui::PushID(i);
 
-            if (ImGui::Selectable(it, selected))
+            if (ImGui::Selectable(items[i].c_str(), selected))
             {
                 *current = i;
                 changed = true;
@@ -150,8 +141,8 @@ static bool custom_combo(const char* label, int* current, const char* items, flo
 
 
 
-UI::UI(Engine& engine, Audio& audio)
-    : m_engine(engine), m_audio(audio)
+UI::UI(Engine& engine, Audio& audio, Log& log)
+    : m_engine(engine), m_audio(audio), m_log(log)
 {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -199,7 +190,7 @@ UI::UI(Engine& engine, Audio& audio)
         "}\n"
     );
 
-    engine.submitSource(m_textEditor.GetText());
+    m_engine.submitSource(m_textEditor.GetText());
 
     ImGuiStyle& style = ImGui::GetStyle();
 
@@ -232,9 +223,7 @@ void UI::render()
         ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus
     );
-    // pop all three colors pushed above now that Begin() has consumed them.
-    // keeping the color stack balanced at this point avoids the fragile
-    // push-here/pop-at-end pattern.
+    // pop all pushed state now that Begin() has consumed it
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(3);
 
@@ -251,9 +240,11 @@ void UI::render()
 
 void UI::drawSettingsPopup(ImVec2 anchor)
 {
-    static int outputDevice = 0, inputDevice = 0, sampleRate = 1, bufferSize = 2;
+    // selections are indices into the lists below
+    static int outputDevice = 0, inputDevice = 0, sampleRate = 0, bufferSize = 0;
 
     static AudioDevices devices;
+    static std::vector<std::string> inNames, outNames, srNames, bufNames;
 
     // width of each item
     const float width  = 320.0f;
@@ -282,16 +273,35 @@ void UI::drawSettingsPopup(ImVec2 anchor)
         devices = m_audio.getDevices();
         hasChanges = false;
 
-        // clamp the persisted selection indices to the available lists
-        auto clamp = [](int& v, size_t n) { if (n == 0) v = 0; else if (v >= (int)n) v = (int)n - 1; };
-        clamp(inputDevice,  devices.inputIndices.size());
-        clamp(outputDevice, devices.outputIndices.size());
-        clamp(sampleRate,   devices.sampleIndices.size());
-        clamp(bufferSize,   devices.bufferIndices.size());
+        inNames.clear(); outNames.clear(); srNames.clear(); bufNames.clear();
+        for (const auto& d : devices.inputs)  inNames.push_back(d.name);
+        for (const auto& d : devices.outputs) outNames.push_back(d.name);
+        for (int v : devices.sampleRates)     srNames.push_back(std::to_string(v) + " Hz");
+        for (int v : devices.bufferSizes)     bufNames.push_back(std::to_string(v));
+
+        // preselect whatever the stream is currently using. -1 means the
+        // portaudio default device.
+        const AudioSettings cur = m_audio.getSettings();
+
+        auto find = [](auto& list, int value, auto getter) -> int
+        {
+            for (size_t i = 0; i < list.size(); ++i)
+                if (getter(list[i]) == value)
+                    return static_cast<int>(i);
+            return 0;
+        };
+
+        const int curIn  = cur.inputDevice  < 0 ? Pa_GetDefaultInputDevice()  : cur.inputDevice;
+        const int curOut = cur.outputDevice < 0 ? Pa_GetDefaultOutputDevice() : cur.outputDevice;
+
+        inputDevice  = find(devices.inputs,  curIn,  [](const AudioDevice& d) { return d.index; });
+        outputDevice = find(devices.outputs, curOut, [](const AudioDevice& d) { return d.index; });
+        sampleRate   = find(devices.sampleRates, cur.sampleRate, [](int v) { return v; });
+        bufferSize   = find(devices.bufferSizes, cur.bufferSize, [](int v) { return v; });
     }
 
     // lambda for drawing each combo and title
-    auto field = [&](const char* label, const char* id, int* v, const char* items)
+    auto field = [&](const char* label, const char* id, int* v, const std::vector<std::string>& items)
     {
         ImGui::TextColored(Theme::Color::Text, "%s", label);
         ImGui::SetNextItemWidth(comboWidth);
@@ -299,52 +309,36 @@ void UI::drawSettingsPopup(ImVec2 anchor)
         return custom_combo(id, v, items, comboWidth);
     };
 
-    const char* inItems  = devices.inputNames.c_str();
-    const char* outItems = devices.outputNames.c_str();
-    const char* srItems  = devices.sampleRates.c_str();
-    const char* bufItems = devices.bufferSizes.c_str();
-
-    bool changedIn  = field("Input Device",  "##input_device",  &inputDevice,  inItems);
-    bool changedOut = field("Output Device", "##output_device", &outputDevice, outItems);
-    bool changedSr  = field("Sample Rate",   "##sample_rate",   &sampleRate,   srItems);
-    bool changedBuf = field("Buffer Size",   "##buffer_size",   &bufferSize,   bufItems);
+    bool changedIn  = field("Input Device",  "##input_device",  &inputDevice,  inNames);
+    bool changedOut = field("Output Device", "##output_device", &outputDevice, outNames);
+    bool changedSr  = field("Sample Rate",   "##sample_rate",   &sampleRate,   srNames);
+    bool changedBuf = field("Buffer Size",   "##buffer_size",   &bufferSize,   bufNames);
 
     if (changedIn || changedOut || changedSr || changedBuf) hasChanges = true;
 
     ImGui::Spacing();
 
-    // If there are no changes, dim the button or disable interactions
+    // no changes, no apply
     if (!hasChanges)
-    {
         ImGui::BeginDisabled();
-    }
 
     if (custom_button("Apply", ImVec2(comboWidth, 0.0f)))
     {
-        int selectedInIdx  = (!devices.inputIndices.empty() && inputDevice < (int)devices.inputIndices.size()) ? devices.inputIndices[inputDevice] : -1;
-        int selectedOutIdx = (!devices.outputIndices.empty() && outputDevice < (int)devices.outputIndices.size()) ? devices.outputIndices[outputDevice] : -1;
+        // -1 lets Audio fall back to the default device
+        const int inDev  = inputDevice  < (int)devices.inputs.size()  ? devices.inputs[inputDevice].index   : -1;
+        const int outDev = outputDevice < (int)devices.outputs.size() ? devices.outputs[outputDevice].index : -1;
+        const int sr     = devices.sampleRates[sampleRate];
+        const int buf    = devices.bufferSizes[bufferSize];
 
-        int finalSr  = sampleRate   < (int)devices.sampleIndices.size() ? devices.sampleIndices[sampleRate]   : -1;
-        int finalBuf = bufferSize   < (int)devices.bufferIndices.size() ? devices.bufferIndices[bufferSize]   : -1;
-
-        if (finalSr < 0 || finalBuf < 0)
-        {
-            m_engine.writeLog("[error] Invalid sample rate or buffer size selection.");
-        }
-        else if (!m_audio.start(m_engine, selectedInIdx, selectedOutIdx, finalSr, finalBuf))
-        {
-            m_engine.writeLog("[error] Failed to restart audio with the selected devices.");
-        }
-        else
-        {
+        // Audio::start logs the specific failure and restores the old stream
+        if (m_audio.start(m_engine, inDev, outDev, sr, buf))
             ImGui::CloseCurrentPopup();
-        }
+        else
+            m_log.write("[error] Failed to restart audio with the selected settings.");
     }
 
     if (!hasChanges)
-    {
         ImGui::EndDisabled();
-    }
 
     ImGui::EndPopup();
 }
@@ -384,9 +378,7 @@ void UI::drawHeader()
 
     // compile button
     if (custom_button("▶", {buttonSize,buttonSize}))
-    {
         m_engine.submitSource(m_textEditor.GetText());
-    };
 
     ImGui::SameLine();
 
@@ -432,15 +424,15 @@ void UI::drawLog()
 
     if (ImGui::BeginChild("##log", {-1, -1}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding))
     {
-        const auto log = m_engine.getLog();
+        const auto lines = m_log.getLines();
 
         // if new lines arrived since last frame, snap to the bottom so the
         // user sees them even if they had scrolled up.
         static size_t lastCount = 0;
-        const bool hasNew = !log.empty() && log.size() != lastCount;
-        lastCount = log.size();
+        const bool hasNew = !lines.empty() && lines.size() != lastCount;
+        lastCount = lines.size();
 
-        for (const auto& line : log)
+        for (const auto& line : lines)
         {
             if (line.find("[error]") != std::string::npos)
                 ImGui::TextColored(Theme::Color::pink, "%s", line.c_str());

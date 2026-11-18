@@ -1,6 +1,7 @@
 #pragma once
 
-#include "VekselEngine.h"
+#include "Engine.h"
+#include "Log.h"
 #include "TextEditor.h"
 #include "Audio.h"
 
@@ -9,7 +10,7 @@ namespace veksel
     class UI
     {
         public:
-            explicit UI(Engine& engine, Audio& audio);
+            explicit UI(Engine& engine, Audio& audio, Log& log);
             void render();
 
         private:
@@ -22,13 +23,9 @@ namespace veksel
                 " ╚████╔╝ ███████╗██║  ██╗███████║███████╗███████╗\n"
                 "  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝";
 
-            // make these uinque porterieers maybe
             ImFont* m_logoFont = nullptr;
-            ImFont* m_mainFont  = nullptr;
-            ImFont* m_iconFont  = nullptr;
-
-            // settings page and editor share the same spot, this picks which one shows
-            bool m_showSettings = false;
+            ImFont* m_mainFont = nullptr;
+            ImFont* m_iconFont = nullptr;
 
             void drawHeader();
             void drawEditor();
@@ -37,6 +34,7 @@ namespace veksel
 
             Engine& m_engine;
             Audio& m_audio;
+            Log& m_log;
             TextEditor m_textEditor;
     };
 }
