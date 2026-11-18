@@ -1,8 +1,11 @@
 #include "UI.h"
 
+#include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 using namespace veksel;
 
@@ -78,6 +81,75 @@ namespace
 
         return 0;
     }
+
+    // "1", "2", ... one label per input channel
+    std::vector<std::string> inputChannelLabels(int count)
+    {
+        std::vector<std::string> labels;
+
+        for (int c = 1; c <= count; ++c)
+            labels.push_back(std::to_string(c));
+
+        return labels;
+    }
+
+    // outputs go in pairs ("1-2", "3-4"). an odd channel left over goes out on its own
+    std::vector<std::string> outputPairLabels(int count)
+    {
+        std::vector<std::string> labels;
+
+        for (int c = 1; c <= count; c += 2)
+        {
+            labels.push_back(c < count
+                ? std::to_string(c) + "-" + std::to_string(c + 1)
+                : std::to_string(c));
+        }
+
+        return labels;
+    }
+
+    void applyTheme()
+    {
+        ImGui::StyleColorsDark();
+
+        const ImVec4 background = {1.00f, 0.41f, 0.71f, 1.0f}; 
+        const ImVec4 panel      = {0.08f, 0.08f, 0.08f, 1.0f};
+        const ImVec4 control    = {0.14f, 0.14f, 0.14f, 1.0f};
+        const ImVec4 border     = {0.22f, 0.22f, 0.22f, 1.0f};
+        const ImVec4 accent     = {1.00f, 0.41f, 0.71f, 1.0f};   // hotpink, #ff69b4
+
+        // same accent, just dimmer, for things that are only hovered
+        const ImVec4 accentDim  = {accent.x * 0.6f, accent.y * 0.6f, accent.z * 0.6f, 1.0f};
+
+        ImVec4* colors = ImGui::GetStyle().Colors;
+        colors[ImGuiCol_WindowBg]      = background;
+        colors[ImGuiCol_ChildBg]       = panel;
+        colors[ImGuiCol_PopupBg]       = panel;
+        colors[ImGuiCol_TitleBg]       = panel;
+        colors[ImGuiCol_TitleBgActive] = panel;
+        colors[ImGuiCol_Border]        = background;
+
+        colors[ImGuiCol_FrameBg]        = control;
+        colors[ImGuiCol_FrameBgHovered] = control;
+        colors[ImGuiCol_FrameBgActive]  = control;
+
+        colors[ImGuiCol_Button]        = control;
+        colors[ImGuiCol_ButtonHovered] = accent;
+        colors[ImGuiCol_ButtonActive]  = accentDim;
+
+        // selected and hovered rows in the combo lists
+        colors[ImGuiCol_Header]        = accentDim;
+        colors[ImGuiCol_HeaderHovered] = accent;
+        colors[ImGuiCol_HeaderActive]  = accent;
+
+        ImGuiStyle& style = ImGui::GetStyle();
+        style.WindowRounding = 5.0f;    // main window fills the viewport
+        style.ChildRounding  = 5.0f;
+        style.FrameRounding  = 5.0f;
+        style.PopupRounding  = 5.0f;
+        style.WindowPadding  = {10.0f, 10.0f};
+        style.FramePadding   = {8.0f, 4.0f};
+    }
 }
 
 UI::UI(Engine& engine, Audio& audio, Log& log)
@@ -85,11 +157,13 @@ UI::UI(Engine& engine, Audio& audio, Log& log)
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::GetStyle().FontSizeBase = 13.0f;
+    applyTheme();
     io.Fonts->AddFontDefaultVector();
 
     // just ascii and the box drawing blocks the logo needs
     static const ImWchar ranges[] = { 0x20, 0x7F, 0x2500, 0x26FF, 0 };
-    const auto fontPath = std::filesystem::path(VEKSEL_ASSET_DIR) / "Menlo.ttc";
+
+    const auto fontPath = std::filesystem::path(VEKSEL_ASSET_DIR) / "DejaVuSansMono.ttf";
 
     if (std::filesystem::exists(fontPath))
         m_logoFont = io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), 16.0f, nullptr, ranges);
@@ -276,23 +350,45 @@ void UI::drawSettingsModal()
         m_devices = m_audio.getDevices();
         const AudioSettings cur = m_audio.getSettings();
 
-        m_inputIdx  = indexOf(m_devices.inputs,      cur.inputDevice,  [](const AudioDevice& d) { return d.index; });
-        m_outputIdx = indexOf(m_devices.outputs,     cur.outputDevice, [](const AudioDevice& d) { return d.index; });
-        m_rateIdx   = indexOf(m_devices.sampleRates, cur.sampleRate,   [](int v) { return v; });
-        m_bufferIdx = indexOf(m_devices.bufferSizes, cur.bufferSize,   [](int v) { return v; });
+        m_inputIdx      = indexOf(m_devices.inputs,      cur.inputDevice,  [](const AudioDevice& d) { return d.index; });
+        m_outputIdx     = indexOf(m_devices.outputs,     cur.outputDevice, [](const AudioDevice& d) { return d.index; });
+        m_rateIdx       = indexOf(m_devices.sampleRates, cur.sampleRate,   [](int v) { return v; });
+        m_bufferIdx     = indexOf(m_devices.bufferSizes, cur.bufferSize,   [](int v) { return v; });
+        m_inputChIdx    = cur.inputChannel;
+        m_outputPairIdx = cur.outputChannel / 2;
     }
 
     const float comboW = width - ImGui::GetStyle().WindowPadding.x * 2.0f;
 
     const auto deviceName = [](const AudioDevice& d) { return d.name; };
+    const auto text       = [](const std::string& s) { return s; };
     const auto hz         = [](int v) { return std::to_string(v) + " Hz"; };
     const auto number     = [](int v) { return std::to_string(v); };
 
+    // the channel lists depend on the device above them, so each device combo
+    // is followed by its channel combo. a device with fewer channels than the
+    // last one means the old channel choice can be out of range, so clamp it
     ImGui::TextUnformatted("Input Device");
     combo("##in", m_inputIdx, m_devices.inputs, deviceName, comboW);
 
+    const AudioDevice* inDevice = m_inputIdx < static_cast<int>(m_devices.inputs.size())
+        ? &m_devices.inputs[m_inputIdx] : nullptr;
+    const auto inLabels = inputChannelLabels(inDevice ? inDevice->channels : 0);
+    m_inputChIdx = std::clamp(m_inputChIdx, 0, std::max(0, static_cast<int>(inLabels.size()) - 1));
+
+    ImGui::TextUnformatted("Input Channel");
+    combo("##inch", m_inputChIdx, inLabels, text, comboW);
+
     ImGui::TextUnformatted("Output Device");
     combo("##out", m_outputIdx, m_devices.outputs, deviceName, comboW);
+
+    const AudioDevice* outDevice = m_outputIdx < static_cast<int>(m_devices.outputs.size())
+        ? &m_devices.outputs[m_outputIdx] : nullptr;
+    const auto outLabels = outputPairLabels(outDevice ? outDevice->channels : 0);
+    m_outputPairIdx = std::clamp(m_outputPairIdx, 0, std::max(0, static_cast<int>(outLabels.size()) - 1));
+
+    ImGui::TextUnformatted("Output Channels");
+    combo("##outch", m_outputPairIdx, outLabels, text, comboW);
 
     ImGui::TextUnformatted("Sample Rate");
     combo("##rate", m_rateIdx, m_devices.sampleRates, hz, comboW);
@@ -302,23 +398,19 @@ void UI::drawSettingsModal()
 
     ImGui::Spacing();
 
-    // no devices in the list means -1, which lets audio pick the default.
-    // rates and buffers are fixed lists so those indices are always valid
-    const int in = m_inputIdx < static_cast<int>(m_devices.inputs.size())
-        ? m_devices.inputs[m_inputIdx].index : -1;
-    const int out = m_outputIdx < static_cast<int>(m_devices.outputs.size())
-        ? m_devices.outputs[m_outputIdx].index : -1;
-    const int rate = m_devices.sampleRates[m_rateIdx];
-    const int buffer = m_devices.bufferSizes[m_bufferIdx];
+    // what the combos currently say. no device in a list means -1, which lets
+    // audio pick the default. rates and buffers are fixed lists so those
+    // indices are always valid
+    AudioSettings wanted;
+    wanted.inputDevice   = inDevice  ? inDevice->index  : -1;
+    wanted.inputChannel  = m_inputChIdx;
+    wanted.outputDevice  = outDevice ? outDevice->index : -1;
+    wanted.outputChannel = m_outputPairIdx * 2;
+    wanted.sampleRate    = m_devices.sampleRates[m_rateIdx];
+    wanted.bufferSize    = m_devices.bufferSizes[m_bufferIdx];
 
     // apply is only useful if audio is off (so it can start) or something differs
-    const AudioSettings cur = m_audio.getSettings();
-    const bool changed =
-        !m_audio.isRunning() ||
-        in     != cur.inputDevice ||
-        out    != cur.outputDevice ||
-        rate   != cur.sampleRate ||
-        buffer != cur.bufferSize;
+    const bool changed = !m_audio.isRunning() || wanted != m_audio.getSettings();
 
     const float btnW = (comboW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 
@@ -326,7 +418,7 @@ void UI::drawSettingsModal()
     if (ImGui::Button("Apply", {btnW, 0.0f}))
     {
         // audio logs its own errors, and puts the old settings back if this fails
-        if (m_audio.start(m_engine, in, out, rate, buffer))
+        if (m_audio.start(m_engine, wanted))
             ImGui::CloseCurrentPopup();
     }
     ImGui::EndDisabled();
@@ -354,8 +446,7 @@ void UI::toggleAudio()
     }
 
     // start again with whatever settings it had last
-    const AudioSettings s = m_audio.getSettings();
-    m_audio.start(m_engine, s.inputDevice, s.outputDevice, s.sampleRate, s.bufferSize);
+    m_audio.start(m_engine, m_audio.getSettings());
 }
 
 void UI::loadFile()

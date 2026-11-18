@@ -27,7 +27,7 @@ int main()
         veksel::Engine engine{log};
         veksel::Audio audio{log};
 
-        if (!audio.start(engine, -1, -1, 44100, 256))
+        if (!audio.start(engine, {.sampleRate = 44100, .bufferSize = 256}))
             log.write("[error] Failed to start audio stream on startup.");
 
         veksel::UI ui{engine, audio, log};

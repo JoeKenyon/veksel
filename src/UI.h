@@ -45,7 +45,9 @@ namespace veksel
         // settings modal state
         AudioDevices m_devices;
         int m_inputIdx = 0;
+        int m_inputChIdx = 0;
         int m_outputIdx = 0;
+        int m_outputPairIdx = 0;
         int m_rateIdx = 0;
         int m_bufferIdx = 0;
     };

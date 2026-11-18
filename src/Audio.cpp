@@ -8,11 +8,6 @@ namespace veksel
 {
     namespace
     {
-        // we take one mono input and send the same signal to both output channels
-        // change this later 
-        constexpr int InputChannels = 1;
-        constexpr int OutputChannels = 2;
-
         // seconds, how much latency we ask portaudio for
         constexpr double SuggestedLatency = 0.01;
 
@@ -27,16 +22,24 @@ namespace veksel
         }
 
         // runs on the audio thread, so no logging, locking or allocating in here
-        int audioCallback( const void* input, void* output, unsigned long frames, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData)
+        int audioCallback(
+            const void* input,
+            void* output,
+            unsigned long frames,
+            const PaStreamCallbackTimeInfo*,
+            PaStreamCallbackFlags,
+            void* userData)
         {
-            auto* engine = static_cast<Engine*>(userData);
+            const auto* ctx = static_cast<const StreamContext*>(userData);
             const auto* in = static_cast<const float*>(input);
             auto* out = static_cast<float*>(output);
 
             for (unsigned long i = 0; i < frames; ++i)
             {
+                // samples are interleaved, so pick our channel out of the frame.
                 // no input device means we feed silence
-                float sample = engine->processSample(in ? in[i] : 0.0f);
+                float sample = in ? in[i * ctx->inChannels + ctx->inChannel] : 0.0f;
+                sample = ctx->engine->processSample(sample);
 
                 // plugins can produce nan, inf or huge values, keep the speakers safe
                 if (!std::isfinite(sample))
@@ -44,8 +47,14 @@ namespace veksel
 
                 sample = std::clamp(sample, -1.0f, 1.0f);
 
-                out[i * 2]     = sample;
-                out[i * 2 + 1] = sample;
+                // silence every channel except our pair. the second one is
+                // missing if the device has an odd channel left over
+                float* frame = out + i * ctx->outChannels;
+                std::fill(frame, frame + ctx->outChannels, 0.0f);
+
+                frame[ctx->outChannel] = sample;
+                if (ctx->outChannel + 1 < ctx->outChannels)
+                    frame[ctx->outChannel + 1] = sample;
             }
 
             return paContinue;
@@ -62,7 +71,7 @@ namespace veksel
         shutdown();
     }
 
-    bool Audio::start(Engine& engine, int inputDev, int outputDev, int sampleRate, int bufferSize)
+    bool Audio::start(Engine& engine, const AudioSettings& settings)
     {
         if (!m_initialized)
         {
@@ -76,12 +85,13 @@ namespace veksel
         }
 
         // -1 means "use the default device"
-        const AudioSettings requested{
-            inputDev  < 0 ? Pa_GetDefaultInputDevice()  : inputDev,
-            outputDev < 0 ? Pa_GetDefaultOutputDevice() : outputDev,
-            sampleRate,
-            bufferSize
-        };
+        AudioSettings requested = settings;
+
+        if (requested.inputDevice < 0)
+            requested.inputDevice = Pa_GetDefaultInputDevice();
+
+        if (requested.outputDevice < 0)
+            requested.outputDevice = Pa_GetDefaultOutputDevice();
 
         // remember what was running so we can go back to it if this fails
         const AudioSettings previous = m_settings;
@@ -95,8 +105,8 @@ namespace veksel
 
             m_log.write(
                 "[sys] Audio stream started successfully (" +
-                std::to_string(sampleRate) + " Hz, " +
-                std::to_string(bufferSize) + " frames)."
+                std::to_string(requested.sampleRate) + " Hz, " +
+                std::to_string(requested.bufferSize) + " frames)."
             );
 
             return true;
@@ -142,11 +152,35 @@ namespace veksel
 
     bool Audio::openStream(Engine& engine, const AudioSettings& settings)
     {
-        const PaStreamParameters inParams  = makeParams(settings.inputDevice,  InputChannels);
-        const PaStreamParameters outParams = makeParams(settings.outputDevice, OutputChannels);
+        const PaDeviceInfo* inInfo  = Pa_GetDeviceInfo(settings.inputDevice);
+        const PaDeviceInfo* outInfo = Pa_GetDeviceInfo(settings.outputDevice);
+
+        if (!outInfo)
+        {
+            m_log.write("[error] No output device available.");
+            return false;
+        }
+
+        // portaudio opens channels 0..n, so to read input channel 3 we open
+        // 4 and ignore the first 3. same for output, we open up to the end
+        // of our pair and zero the rest in the callback
+        m_context = StreamContext{};
+        m_context.engine = &engine;
+
+        if (inInfo)
+        {
+            m_context.inChannel  = std::clamp(settings.inputChannel, 0, inInfo->maxInputChannels - 1);
+            m_context.inChannels = m_context.inChannel + 1;
+        }
+
+        m_context.outChannel  = std::clamp(settings.outputChannel, 0, outInfo->maxOutputChannels - 1);
+        m_context.outChannels = std::min(m_context.outChannel + 2, outInfo->maxOutputChannels);
+
+        const PaStreamParameters inParams  = makeParams(settings.inputDevice, m_context.inChannels);
+        const PaStreamParameters outParams = makeParams(settings.outputDevice, m_context.outChannels);
 
         // no input device is fine, we just run output only
-        const PaStreamParameters* inPtr = inParams.device != paNoDevice ? &inParams : nullptr;
+        const PaStreamParameters* inPtr = inInfo ? &inParams : nullptr;
 
         const PaError openResult = Pa_OpenStream(
             &m_stream,
@@ -156,7 +190,7 @@ namespace veksel
             settings.bufferSize,
             paClipOff,          // we clamp ourselves in the callback
             audioCallback,
-            &engine
+            &m_context
         );
 
         if (openResult != paNoError)
@@ -189,10 +223,10 @@ namespace veksel
                 continue;
 
             if (info->maxInputChannels > 0)
-                devices.inputs.push_back({i, info->name});
+                devices.inputs.push_back({i, info->name, info->maxInputChannels});
 
             if (info->maxOutputChannels > 0)
-                devices.outputs.push_back({i, info->name});
+                devices.outputs.push_back({i, info->name, info->maxOutputChannels});
         }
 
         // fixed lists, we don't query what each device actually supports

@@ -17,9 +17,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install graphics and audio dependencies
-        run: brew install glfw portaudio
-
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DVEKSEL_BUILD_TESTS=ON
 
