@@ -60,6 +60,7 @@ namespace veksel
         // restore the previous configuration if the new one fails
         if (hadStream && openStream(engine, previous))
         {
+            m_settings = previous;
             m_log.write("[warn] Previous audio settings restored.");
         }
         else if (hadStream)
