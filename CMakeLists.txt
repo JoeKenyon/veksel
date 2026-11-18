@@ -127,7 +127,7 @@ endif()
 add_executable(veksel
     "${SRC_DIR}/main.cpp"
     "${SRC_DIR}/UI.cpp"
-    "${SRC_DIR}/platform.cpp"
+    "${SRC_DIR}/Platform.cpp"
     "${TEXTEDITOR_DIR}/TextEditor.cpp"
 )
 
