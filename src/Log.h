@@ -1,39 +1,27 @@
-
 #pragma once
 
-#include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
 
 namespace veksel
 {
+    // thread-safe list of log lines. the ui polls getLines()
     class Log
     {
     public:
-        // called whenever a new message is written
-        using Callback = std::function<void(const std::string&)>;
+        static constexpr size_t MaxLines = 500;
 
-        Log() = default;
-        ~Log() = default;
-
-        // store a message and notify the ui
         void write(std::string message);
 
-        // return a copy of all log messages
+        // copy of the stored lines, oldest first
         std::vector<std::string> getLines() const;
 
-        // remove all stored messages
+        // remove all stored lines
         void clear();
 
-        // set the callback used to send messages to the ui
-        void setCallback(Callback callback);
-
     private:
-        // protect the messages and callback from other threads
         mutable std::mutex m_mutex;
-
         std::vector<std::string> m_lines;
-        Callback m_callback;
     };
 }

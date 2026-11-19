@@ -5,82 +5,105 @@
 
 #include <atomic>
 #include <chrono>
+#include <memory>
+#include <string>
 #include <thread>
 
 using namespace std::chrono_literals;
 
-// run a soak test to make sure the compiler doesn't leak memory or hang over hundreds of quick compile loops
+// many quick compiles don't leak, hang or log errors
 TEST_CASE("soak: compiler survives many compiles", "[soak][compiler]")
 {
     veksel::Log log;
     veksel::Compiler compiler{log};
 
-    constexpr int iterations = 200;   // ~2-4s on a laptop; raise locally
+    constexpr int iterations = 200;
 
     for (int i = 0; i < iterations; ++i)
     {
         compiler.submit("veksel_main { return input * " + std::to_string(i % 7 + 1) + ".0f; }");
 
-        std::optional<veksel::Plugin> plugin;
+        std::unique_ptr<veksel::Plugin> plugin;
         for (auto waited = 0ms; waited < 2000ms && !plugin; waited += 2ms)
         {
             plugin = compiler.take();
-            if (!plugin) std::this_thread::sleep_for(2ms);
+            if (!plugin)
+                std::this_thread::sleep_for(2ms);
         }
 
-        REQUIRE(plugin);
-        REQUIRE(plugin->function);
+        REQUIRE(plugin != nullptr);
+        REQUIRE(plugin->function != nullptr);
         CHECK(plugin->function(1.0f) == static_cast<float>(i % 7 + 1));
     }
 
-    // make sure a clean soak didn't output any error lines to the log
     for (const auto& line : log.getLines())
         CHECK(line.find("[error]") == std::string::npos);
 }
 
-// quick code submissions while forcing updates to check for thread safety and locks
-TEST_CASE("soak: engine swaps under concurrent submits", "[soak][swap]")
+// a real audio thread runs while the ui thread keeps swapping plugins
+TEST_CASE("soak: engine swaps under a running audio thread", "[soak][swap]")
 {
     veksel::Log log;
     veksel::Engine engine{log};
 
     std::atomic<bool> stop{false};
-    std::atomic<int>  submitted{0};
+    std::atomic<long> badSamples{0};
+    std::atomic<long> doubled{0};
+    std::atomic<long> tripled{0};
 
-    // background thread submits new sources as fast as it can
-    std::thread submitter([&] 
+    // audio thread: blocks of 64 samples, probe 1.0.
+    // passthrough gives 1, the plugins give 2 or 3. anything else is a bug.
+    // a block must never mix two different plugins
+    std::thread audio([&]
     {
-        int i = 0;
         while (!stop.load(std::memory_order_relaxed))
         {
-            engine.submitSource("veksel_main { return input * 2.0f; }");
-            ++submitted;
-            ++i;
+            engine.beginBlock();
+
+            const float first = engine.processSample(1.0f);
+            bool mixed = false;
+
+            for (int i = 1; i < 64; ++i)
+                if (engine.processSample(1.0f) != first)
+                    mixed = true;
+
+            if (mixed || (first != 1.0f && first != 2.0f && first != 3.0f))
+                ++badSamples;
+            else if (first == 2.0f)
+                ++doubled;
+            else if (first == 3.0f)
+                ++tripled;
+
+            std::this_thread::sleep_for(100us);
+        }
+    });
+
+    // submitter thread: alternate between two plugins as fast as it can
+    std::thread submitter([&]
+    {
+        bool two = true;
+        while (!stop.load(std::memory_order_relaxed))
+        {
+            engine.submitSource(two ? "veksel_main { return input * 2.0f; }"
+                                    : "veksel_main { return input * 3.0f; }");
+            two = !two;
             std::this_thread::sleep_for(1ms);
         }
     });
 
-    // main thread drives the handshake
+    // this thread is the ui thread
     const auto deadline = std::chrono::steady_clock::now() + 5s;
-    int swaps = 0;
-    float probe = 1.0f;
-
     while (std::chrono::steady_clock::now() < deadline)
     {
         engine.update();
-        engine.processSample(0.0f);   // ack if requested
-        engine.update();              // install if acked
-
-        // once a plugin is active, it must be the doubling one
-        const float out = engine.processSample(probe);
-        if (out == 2.0f) ++swaps;
-
         std::this_thread::sleep_for(1ms);
     }
 
     stop.store(true);
     submitter.join();
+    audio.join();
 
-    CHECK(submitted.load() > 0);
-    CHECK(swaps > 0);   // verify that at least one plugin went live during the soak
+    CHECK(badSamples.load() == 0);
+    CHECK(doubled.load() > 0);
+    CHECK(tripled.load() > 0);
 }

@@ -11,6 +11,26 @@ using namespace veksel;
 
 namespace
 {
+    // flat button with an accent colour
+    bool CustomButton(const char* label, const ImVec2& size = ImVec2(0, 0))
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.12f, 0.14f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.0f, 0.5f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.0f, 0.4f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.95f, 0.95f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.3f, 0.3f, 0.35f, 1.0f));
+
+        const bool clicked = ImGui::Button(label, size);
+
+        ImGui::PopStyleColor(5);
+        ImGui::PopStyleVar(2);
+
+        return clicked;
+    }
+
     constexpr const char* Logo =
         "██╗   ██╗███████╗██╗  ██╗███████╗███████╗██╗     \n"
         "██║   ██║██╔════╝██║ ██╔╝██╔════╝██╔════╝██║     \n"
@@ -30,7 +50,7 @@ namespace
     constexpr const char* SaveTitle     = "Save File";
     constexpr const char* SettingsTitle = "Audio Settings";
 
-    // pick a colour from the tag at the start of a log line
+    // pick a colour from the tag in a log line
     ImVec4 lineColor(const std::string& line)
     {
         if (line.find("[error]") != std::string::npos) return {1.0f, 0.4f, 0.4f, 1.0f};
@@ -40,79 +60,66 @@ namespace
         return ImGui::GetStyleColorVec4(ImGuiCol_Text);
     }
 
-    // combo box for any list. getLabel turns an item into the text to show
-    template <typename Items, typename LabelFn>
-    bool combo(const char* id, int& current, const Items& items, LabelFn getLabel, float width)
+    // combo over any list. value is the setting being edited, getValue and
+    // getLabel turn an item into its value and its text. if value isn't in
+    // the list (device changed, nothing chosen yet) it snaps to the first item
+    template <typename Items, typename ValueFn, typename LabelFn>
+    void combo(const char* id, int& value, const Items& items,
+               ValueFn getValue, LabelFn getLabel, float width)
     {
-        const int count = static_cast<int>(items.size());
-        const std::string preview = current < count ? getLabel(items[current]) : "";
+        if (items.empty())
+            return;
 
-        bool changed = false;
+        auto it = std::find_if(items.begin(), items.end(),
+            [&](const auto& item) { return getValue(item) == value; });
+
+        if (it == items.end())
+        {
+            it = items.begin();
+            value = getValue(*it);
+        }
+
         ImGui::SetNextItemWidth(width);
 
-        if (ImGui::BeginCombo(id, preview.c_str()))
+        if (ImGui::BeginCombo(id, getLabel(*it).c_str()))
         {
-            for (int i = 0; i < count; ++i)
+            for (const auto& item : items)
             {
-                ImGui::PushID(i);
+                ImGui::PushID(getValue(item));
 
-                if (ImGui::Selectable(getLabel(items[i]).c_str(), i == current))
-                {
-                    current = i;
-                    changed = true;
-                }
+                if (ImGui::Selectable(getLabel(item).c_str(), getValue(item) == value))
+                    value = getValue(item);
 
                 ImGui::PopID();
             }
 
             ImGui::EndCombo();
         }
-
-        return changed;
     }
 
-    // index of the first item whose key matches value, or 0 if none do
-    template <typename Items, typename KeyFn>
-    int indexOf(const Items& items, int value, KeyFn getKey)
+    // 0, step, 2*step ... below count
+    std::vector<int> range(int count, int step)
     {
-        for (size_t i = 0; i < items.size(); ++i)
-            if (getKey(items[i]) == value)
-                return static_cast<int>(i);
+        std::vector<int> v;
+        for (int i = 0; i < count; i += step)
+            v.push_back(i);
+        return v;
+    }
 
+    // channel count of the device with this portaudio index, 0 if not found
+    int channelsOf(const std::vector<AudioDevice>& list, int index)
+    {
+        for (const auto& d : list)
+            if (d.index == index)
+                return d.channels;
         return 0;
-    }
-
-    // "1", "2", ... one label per input channel
-    std::vector<std::string> inputChannelLabels(int count)
-    {
-        std::vector<std::string> labels;
-
-        for (int c = 1; c <= count; ++c)
-            labels.push_back(std::to_string(c));
-
-        return labels;
-    }
-
-    // outputs go in pairs ("1-2", "3-4"). an odd channel left over goes out on its own
-    std::vector<std::string> outputPairLabels(int count)
-    {
-        std::vector<std::string> labels;
-
-        for (int c = 1; c <= count; c += 2)
-        {
-            labels.push_back(c < count
-                ? std::to_string(c) + "-" + std::to_string(c + 1)
-                : std::to_string(c));
-        }
-
-        return labels;
     }
 
     void applyTheme()
     {
         ImGui::StyleColorsDark();
 
-        const ImVec4 background = {1.00f, 0.41f, 0.71f, 1.0f}; 
+        const ImVec4 background = {0.02f, 0.02f, 0.02f, 1.0f};
         const ImVec4 panel      = {0.08f, 0.08f, 0.08f, 1.0f};
         const ImVec4 control    = {0.14f, 0.14f, 0.14f, 1.0f};
         const ImVec4 border     = {0.22f, 0.22f, 0.22f, 1.0f};
@@ -127,7 +134,7 @@ namespace
         colors[ImGuiCol_PopupBg]       = panel;
         colors[ImGuiCol_TitleBg]       = panel;
         colors[ImGuiCol_TitleBgActive] = panel;
-        colors[ImGuiCol_Border]        = background;
+        colors[ImGuiCol_Border]        = border;
 
         colors[ImGuiCol_FrameBg]        = control;
         colors[ImGuiCol_FrameBgHovered] = control;
@@ -143,7 +150,7 @@ namespace
         colors[ImGuiCol_HeaderActive]  = accent;
 
         ImGuiStyle& style = ImGui::GetStyle();
-        style.WindowRounding = 5.0f;    // main window fills the viewport
+        style.WindowRounding = 5.0f;
         style.ChildRounding  = 5.0f;
         style.FrameRounding  = 5.0f;
         style.PopupRounding  = 5.0f;
@@ -248,23 +255,23 @@ void UI::drawHeader()
         (ImGui::GetWindowHeight() - btnH) * 0.5f
     });
 
-    if (ImGui::Button("Open", {btnW, btnH}))
+    if (CustomButton("Open", {btnW, btnH}))
         m_openPopup = OpenTitle;
 
     ImGui::SameLine();
-    if (ImGui::Button("Save", {btnW, btnH}))
+    if (CustomButton("Save", {btnW, btnH}))
         m_openPopup = SaveTitle;
 
     ImGui::SameLine();
-    if (ImGui::Button("Compile", {btnW, btnH}))
+    if (CustomButton("Compile", {btnW, btnH}))
         compile();
 
     ImGui::SameLine();
-    if (ImGui::Button(m_audio.isRunning() ? "Audio On" : "Audio Off", {btnW, btnH}))
+    if (CustomButton(m_audio.isRunning() ? "Audio On" : "Audio Off", {btnW, btnH}))
         toggleAudio();
 
     ImGui::SameLine();
-    if (ImGui::Button("Settings", {btnW, btnH}))
+    if (CustomButton("Settings", {btnW, btnH}))
         m_openPopup = SettingsTitle;
 
     ImGui::EndChild();
@@ -284,17 +291,12 @@ void UI::drawLog()
 {
     if (ImGui::BeginChild("##log", {-1.0f, -1.0f}, ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding))
     {
-        const auto lines = m_log.getLines();
-
-        for (const auto& line : lines)
+        for (const auto& line : m_log.getLines())
             ImGui::TextColored(lineColor(line), "%s", line.c_str());
 
-        // snap to the bottom whenever new lines show up
-        if (lines.size() != m_lastLogCount)
-        {
-            m_lastLogCount = lines.size();
+        // follow new lines, unless you've scrolled up to read
+        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
             ImGui::SetScrollHereY(1.0f);
-        }
     }
 
     ImGui::EndChild();
@@ -316,7 +318,7 @@ void UI::drawFileModal(const char* title, bool saving)
     ImGui::SetNextItemWidth(360.0f);
     const bool enter = ImGui::InputText("##path", m_path, sizeof(m_path), ImGuiInputTextFlags_EnterReturnsTrue);
 
-    if (ImGui::Button(saving ? "Save" : "Open", {100.0f, 0.0f}) || enter)
+    if (CustomButton(saving ? "Save" : "Open", {100.0f, 0.0f}) || enter)
     {
         if (saving) saveFile();
         else        loadFile();
@@ -327,7 +329,7 @@ void UI::drawFileModal(const char* title, bool saving)
     ImGui::SameLine();
 
     // modals don't close on escape by themselves
-    if (ImGui::Button("Cancel", {100.0f, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    if (CustomButton("Cancel", {100.0f, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndPopup();
@@ -343,89 +345,65 @@ void UI::drawSettingsModal()
     if (!ImGui::BeginPopupModal(SettingsTitle, nullptr, ImGuiWindowFlags_NoResize))
         return;
 
-    // refresh the device list each time the popup opens and
-    // preselect whatever the stream is using right now
+    // refresh devices and start from what the stream is using now
     if (ImGui::IsWindowAppearing())
     {
         m_devices = m_audio.getDevices();
-        const AudioSettings cur = m_audio.getSettings();
-
-        m_inputIdx      = indexOf(m_devices.inputs,      cur.inputDevice,  [](const AudioDevice& d) { return d.index; });
-        m_outputIdx     = indexOf(m_devices.outputs,     cur.outputDevice, [](const AudioDevice& d) { return d.index; });
-        m_rateIdx       = indexOf(m_devices.sampleRates, cur.sampleRate,   [](int v) { return v; });
-        m_bufferIdx     = indexOf(m_devices.bufferSizes, cur.bufferSize,   [](int v) { return v; });
-        m_inputChIdx    = cur.inputChannel;
-        m_outputPairIdx = cur.outputChannel / 2;
+        m_wanted  = m_audio.getSettings();
     }
 
+    AudioSettings& w = m_wanted;
     const float comboW = width - ImGui::GetStyle().WindowPadding.x * 2.0f;
 
-    const auto deviceName = [](const AudioDevice& d) { return d.name; };
-    const auto text       = [](const std::string& s) { return s; };
-    const auto hz         = [](int v) { return std::to_string(v) + " Hz"; };
-    const auto number     = [](int v) { return std::to_string(v); };
+    const auto devIndex = [](const AudioDevice& d) { return d.index; };
+    const auto devName  = [](const AudioDevice& d) { return d.name; };
+    const auto self     = [](int v) { return v; };
+    const auto number   = [](int v) { return std::to_string(v); };
+    const auto hz       = [](int v) { return std::to_string(v) + " Hz"; };
 
-    // the channel lists depend on the device above them, so each device combo
-    // is followed by its channel combo. a device with fewer channels than the
-    // last one means the old channel choice can be out of range, so clamp it
     ImGui::TextUnformatted("Input Device");
-    combo("##in", m_inputIdx, m_devices.inputs, deviceName, comboW);
-
-    const AudioDevice* inDevice = m_inputIdx < static_cast<int>(m_devices.inputs.size())
-        ? &m_devices.inputs[m_inputIdx] : nullptr;
-    const auto inLabels = inputChannelLabels(inDevice ? inDevice->channels : 0);
-    m_inputChIdx = std::clamp(m_inputChIdx, 0, std::max(0, static_cast<int>(inLabels.size()) - 1));
+    combo("##in", w.inputDevice, m_devices.inputs, devIndex, devName, comboW);
 
     ImGui::TextUnformatted("Input Channel");
-    combo("##inch", m_inputChIdx, inLabels, text, comboW);
+    combo("##inch", w.inputChannel, range(channelsOf(m_devices.inputs, w.inputDevice), 1),
+          self, [](int v) { return std::to_string(v + 1); }, comboW);
 
     ImGui::TextUnformatted("Output Device");
-    combo("##out", m_outputIdx, m_devices.outputs, deviceName, comboW);
+    combo("##out", w.outputDevice, m_devices.outputs, devIndex, devName, comboW);
 
-    const AudioDevice* outDevice = m_outputIdx < static_cast<int>(m_devices.outputs.size())
-        ? &m_devices.outputs[m_outputIdx] : nullptr;
-    const auto outLabels = outputPairLabels(outDevice ? outDevice->channels : 0);
-    m_outputPairIdx = std::clamp(m_outputPairIdx, 0, std::max(0, static_cast<int>(outLabels.size()) - 1));
+    // outputs go in pairs "1-2", "3-4". an odd last channel goes out alone
+    const int outCount = channelsOf(m_devices.outputs, w.outputDevice);
 
     ImGui::TextUnformatted("Output Channels");
-    combo("##outch", m_outputPairIdx, outLabels, text, comboW);
+    combo("##outch", w.outputChannel, range(outCount, 2), self,
+          [outCount](int v)
+          {
+              return v + 1 < outCount
+                  ? std::to_string(v + 1) + "-" + std::to_string(v + 2)
+                  : std::to_string(v + 1);
+          }, comboW);
 
     ImGui::TextUnformatted("Sample Rate");
-    combo("##rate", m_rateIdx, m_devices.sampleRates, hz, comboW);
+    combo("##rate", w.sampleRate, m_devices.sampleRates, self, hz, comboW);
 
     ImGui::TextUnformatted("Buffer Size");
-    combo("##buffer", m_bufferIdx, m_devices.bufferSizes, number, comboW);
+    combo("##buffer", w.bufferSize, m_devices.bufferSizes, self, number, comboW);
 
     ImGui::Spacing();
 
-    // what the combos currently say. no device in a list means -1, which lets
-    // audio pick the default. rates and buffers are fixed lists so those
-    // indices are always valid
-    AudioSettings wanted;
-    wanted.inputDevice   = inDevice  ? inDevice->index  : -1;
-    wanted.inputChannel  = m_inputChIdx;
-    wanted.outputDevice  = outDevice ? outDevice->index : -1;
-    wanted.outputChannel = m_outputPairIdx * 2;
-    wanted.sampleRate    = m_devices.sampleRates[m_rateIdx];
-    wanted.bufferSize    = m_devices.bufferSizes[m_bufferIdx];
-
     // apply is only useful if audio is off (so it can start) or something differs
-    const bool changed = !m_audio.isRunning() || wanted != m_audio.getSettings();
-
+    const bool changed = !m_audio.isRunning() || w != m_audio.getSettings();
     const float btnW = (comboW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 
+    // audio logs its own errors. if it fails, audio stays off
     ImGui::BeginDisabled(!changed);
-    if (ImGui::Button("Apply", {btnW, 0.0f}))
-    {
-        // audio logs its own errors, and puts the old settings back if this fails
-        if (m_audio.start(m_engine, wanted))
-            ImGui::CloseCurrentPopup();
-    }
+    if (CustomButton("Apply", {btnW, 0.0f}) && m_audio.start(m_engine, w))
+        ImGui::CloseCurrentPopup();
     ImGui::EndDisabled();
 
     ImGui::SameLine();
 
-    if (ImGui::Button("Cancel", {btnW, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    if (CustomButton("Cancel", {btnW, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndPopup();

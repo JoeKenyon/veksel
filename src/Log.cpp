@@ -1,4 +1,3 @@
-
 #include "Log.h"
 
 #include <utility>
@@ -7,41 +6,23 @@ using namespace veksel;
 
 void Log::write(std::string message)
 {
-    Callback callback;
+    std::lock_guard lock(m_mutex);
 
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
+    m_lines.push_back(std::move(message));
 
-        // save the message and copy the callback
-        m_lines.push_back(message);
-        callback = m_callback;
-    }
-
-    // notify the ui without holding the log mutex
-    if (callback)
-        callback(message);
+    // keep the newest lines only
+    if (m_lines.size() > MaxLines)
+        m_lines.erase(m_lines.begin());
 }
 
 std::vector<std::string> Log::getLines() const
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    // return a copy so the internal vector stays protected
+    std::lock_guard lock(m_mutex);
     return m_lines;
 }
 
 void Log::clear()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    // remove all messages
+    std::lock_guard lock(m_mutex);
     m_lines.clear();
-}
-
-void Log::setCallback(Callback callback)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    // replace the current callback
-    m_callback = std::move(callback);
 }

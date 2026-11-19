@@ -6,8 +6,6 @@
 #include "TextEditor.h"
 #include "imgui.h"
 
-#include <cstddef>
-
 namespace veksel
 {
     class UI
@@ -40,15 +38,9 @@ namespace veksel
         const char* m_openPopup = nullptr;
 
         char m_path[256] = "patch.c";
-        size_t m_lastLogCount = 0;
 
-        // settings modal state
+        // settings modal: device lists, and the settings being edited
         AudioDevices m_devices;
-        int m_inputIdx = 0;
-        int m_inputChIdx = 0;
-        int m_outputIdx = 0;
-        int m_outputPairIdx = 0;
-        int m_rateIdx = 0;
-        int m_bufferIdx = 0;
+        AudioSettings m_wanted;
     };
 }
