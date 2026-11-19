@@ -18,7 +18,9 @@ int main()
     std::signal(SIGINT, on_sigint);
 
     if (!platform_init("Veksel", 950, 800))
+    {
         return 1;
+    }
 
     // own scope so everything here (ui included) is destroyed before
     // platform_shutdown() tears down the imgui context
@@ -28,14 +30,14 @@ int main()
         veksel::Audio audio{log};
 
         if (!audio.start(engine, {.sampleRate = 44100, .bufferSize = 256}))
+        {
             log.write("[error] Failed to start audio stream on startup.");
+        }
 
         veksel::UI ui{engine, audio, log};
 
         while (!quit && platform_begin_frame())
         {
-            engine.update();
-
             ui.render();
 
             platform_end_frame();

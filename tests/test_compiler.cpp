@@ -2,23 +2,49 @@
 #include "Compiler.h"
 #include "Log.h"
 
+#include <atomic>
 #include <chrono>
 #include <memory>
+#include <string>
 #include <thread>
 
 using namespace std::chrono_literals;
 
-// poll the compiler until we get a plugin back or time out
-static std::unique_ptr<veksel::Plugin> waitFor(veksel::Compiler& c,
-                                               std::chrono::milliseconds timeout = 3000ms)
+namespace
 {
-    for (auto waited = 0ms; waited < timeout; waited += 5ms)
+    // pull a compiled plugin out of incoming() if one lands before timeout,
+    // and hand ownership back to the caller (or test) to delete
+    std::unique_ptr<veksel::Plugin> waitForIncoming(
+        veksel::Compiler& c,
+        std::chrono::milliseconds timeout = 3000ms
+    )
     {
-        if (auto p = c.take())
-            return p;
-        std::this_thread::sleep_for(5ms);
+        for (auto waited = 0ms; waited < timeout; waited += 5ms)
+        {
+            if (veksel::Plugin* p = c.incoming().exchange(nullptr, std::memory_order_acq_rel))
+            {
+                return std::unique_ptr<veksel::Plugin>(p);
+            }
+            std::this_thread::sleep_for(5ms);
+        }
+        return nullptr;
     }
-    return nullptr;
+
+    bool hasErrorLog(const veksel::Log& log, std::chrono::milliseconds timeout = 500ms)
+    {
+        for (auto waited = 0ms; waited < timeout; waited += 5ms)
+        {
+            for (const auto& line : log.getLines())
+            {
+                if (line.find("[error]") != std::string::npos)
+                {
+                    return true;
+                }
+            }
+            std::this_thread::sleep_for(5ms);
+        }
+        return false;
+    }
 }
 
 // valid code compiles and runs
@@ -29,7 +55,7 @@ TEST_CASE("Compiler produces a working plugin", "[compiler]")
 
     compiler.submit("veksel_main { return input * 0.5f; }");
 
-    auto plugin = waitFor(compiler);
+    auto plugin = waitForIncoming(compiler);
     REQUIRE(plugin != nullptr);
     REQUIRE(plugin->function != nullptr);
     CHECK(plugin->function(1.0f) == 0.5f);
@@ -43,13 +69,8 @@ TEST_CASE("Compiler rejects broken source", "[compiler]")
 
     compiler.submit("veksel_main { return nope; }");
 
-    CHECK(waitFor(compiler, 500ms) == nullptr);
-
-    bool sawError = false;
-    for (const auto& line : log.getLines())
-        if (line.find("[error]") != std::string::npos)
-            sawError = true;
-    CHECK(sawError);
+    CHECK(waitForIncoming(compiler, 500ms) == nullptr);
+    CHECK(hasErrorLog(log));
 }
 
 // code without veksel_main is dropped
@@ -60,7 +81,8 @@ TEST_CASE("Compiler rejects source with no entry point", "[compiler]")
 
     compiler.submit("int main() { return 0; }");
 
-    CHECK(waitFor(compiler, 500ms) == nullptr);
+    CHECK(waitForIncoming(compiler, 500ms) == nullptr);
+    CHECK(hasErrorLog(log));
 }
 
 // math functions work through the prelude
@@ -71,7 +93,7 @@ TEST_CASE("Compiler handles math functions from the prelude", "[compiler]")
 
     compiler.submit("veksel_main { return sinf(input); }");
 
-    auto plugin = waitFor(compiler);
+    auto plugin = waitForIncoming(compiler);
     REQUIRE(plugin != nullptr);
     CHECK(plugin->function(0.0f) == 0.0f);
     CHECK(plugin->function(1.57079632679f) > 0.99f);

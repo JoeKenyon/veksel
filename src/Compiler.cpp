@@ -67,12 +67,6 @@ void Compiler::submit(std::string source)
     m_wake.notify_one();
 }
 
-std::unique_ptr<Plugin> Compiler::take()
-{
-    std::scoped_lock lock{m_mutex};
-    return std::move(m_result);
-}
-
 void Compiler::loop()
 {
     for (;;)
@@ -84,18 +78,38 @@ void Compiler::loop()
             m_wake.wait(lock, [this] { return m_stopping || m_source; });
 
             if (m_stopping)
+            {
                 return;
+            }
 
             source = std::move(*m_source);
             m_source.reset();
         }
 
-        if (auto plugin = compile(source))
+        // free anything audio already placed in the retired bin
+        delete m_retired.exchange(nullptr, std::memory_order_acq_rel);
+
+        auto plugin = compile(source);
+        if (!plugin)
         {
-            std::scoped_lock lock{m_mutex};
-            if (!m_stopping)
-                m_result = std::move(plugin);
+            continue;
         }
+
+        Plugin* raw = plugin.release();
+
+        {
+            // skip publishing if shutdown happened while compiling
+            std::scoped_lock lock{m_mutex};
+            if (m_stopping)
+            {
+                delete raw;
+                return;
+            }
+        }
+
+        // hand straight to audio and free any unpicked previous plugin
+        delete m_incoming.exchange(raw, std::memory_order_acq_rel);
+        m_log.write("[ok] swapped with new plugin");
     }
 }
 

@@ -7,21 +7,29 @@
 
 using namespace std::chrono_literals;
 
-// act as ui and audio thread together until probe gives expect, or time out
-static bool driveUntil(veksel::Engine& engine, float probe, float expect,
-                       std::chrono::milliseconds timeout = 3000ms)
+namespace
 {
-    for (auto waited = 0ms; waited < timeout; waited += 5ms)
+    // step the audio block swap until processSample(probe) hits expect or times out
+    bool driveUntil(
+        veksel::Engine& engine,
+        float probe,
+        float expect,
+        std::chrono::milliseconds timeout = 3000ms
+    )
     {
-        engine.update();       // ui: hand over new plugin, delete old one
-        engine.beginBlock();   // audio: pick it up
+        for (auto waited = 0ms; waited < timeout; waited += 5ms)
+        {
+            engine.beginBlock();
 
-        if (engine.processSample(probe) == expect)
-            return true;
+            if (engine.processSample(probe) == expect)
+            {
+                return true;
+            }
 
-        std::this_thread::sleep_for(5ms);
+            std::this_thread::sleep_for(5ms);
+        }
+        return false;
     }
-    return false;
 }
 
 // before any source is loaded the engine is a passthrough
@@ -62,7 +70,7 @@ TEST_CASE("swapping A -> B replaces the function", "[swap]")
     CHECK(engine.processSample(0.5f) == 5.0f);
 }
 
-// a plugin never changes in the middle of a block
+// a plugin never changes without beginBlock
 TEST_CASE("plugin only changes at beginBlock", "[swap]")
 {
     veksel::Log log;
@@ -73,11 +81,14 @@ TEST_CASE("plugin only changes at beginBlock", "[swap]")
 
     engine.submitSource("veksel_main { return input * 10.0f; }");
 
-    // ui hands the new plugin over, but the audio thread hasn't started a block
-    for (int i = 0; i < 600; ++i)
+    // give the compiler time to publish while skipping beginBlock
+    for (int i = 0; i < 60; ++i)
     {
-        engine.update();
         std::this_thread::sleep_for(5ms);
-        CHECK(engine.processSample(2.0f) == 3.0f);   // still the old one
+        CHECK(engine.processSample(2.0f) == 3.0f);
     }
+
+    // once beginBlock runs, the new plugin takes over
+    engine.beginBlock();
+    CHECK(engine.processSample(2.0f) == 20.0f);
 }

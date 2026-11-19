@@ -2,6 +2,7 @@
 
 #include "Log.h"
 
+#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -37,11 +38,11 @@ namespace veksel
         Compiler(const Compiler&) = delete;
         Compiler& operator=(const Compiler&) = delete;
 
-        // queues source. replaces source that hasn't started yet
+        // queues source, replacing anything waiting to compile
         void submit(std::string source);
 
-        // newest compiled plugin, or null. each one is handed out once
-        std::unique_ptr<Plugin> take();
+        std::atomic<Plugin*>& incoming() noexcept { return m_incoming; }
+        std::atomic<Plugin*>& retired()  noexcept { return m_retired;  }
 
     private:
         std::unique_ptr<Plugin> compile(std::string_view source);
@@ -50,14 +51,17 @@ namespace veksel
 
         Log& m_log;
 
-        // guards everything below
+        // lock-free handoff slots for the audio thread
+        std::atomic<Plugin*> m_incoming{nullptr};
+        std::atomic<Plugin*> m_retired{nullptr};
+
+        // guards compilation requests and shutdown state
         std::mutex m_mutex;
         std::condition_variable m_wake;
         std::optional<std::string> m_source;
-        std::unique_ptr<Plugin> m_result;
         bool m_stopping = false;
 
-        // last, its thread starts in the constructor
+        // last so members above are ready before the thread starts
         std::thread m_thread;
     };
 }

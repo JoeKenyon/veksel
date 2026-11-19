@@ -29,9 +29,14 @@ namespace veksel
                         const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags,
                         void* userData)
     {
+
+
         auto& a = *static_cast<Audio*>(userData);
         const auto* in = static_cast<const float*>(input);
         auto* out = static_cast<float*>(output);
+
+        if (!a.m_engine || !out)
+            return paContinue;
 
         // one swap check per block, then the plugin can't change under us
         a.m_engine->beginBlock();
