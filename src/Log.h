@@ -2,7 +2,8 @@
 
 #include <mutex>
 #include <string>
-#include <vector>
+#include <deque>
+
 
 namespace veksel
 {
@@ -15,13 +16,13 @@ namespace veksel
         void write(std::string message);
 
         // copy of the stored lines, oldest first
-        std::vector<std::string> getLines() const;
+        std::deque<std::string> getLines() const;
 
         // remove all stored lines
         void clear();
 
     private:
         mutable std::mutex m_mutex;
-        std::vector<std::string> m_lines;
+        std::deque<std::string> m_lines;
     };
 }

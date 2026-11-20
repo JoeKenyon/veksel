@@ -149,10 +149,10 @@ std::unique_ptr<Plugin> Compiler::compile(std::string_view source)
     if (tcc_relocate(state) < 0)
         return fail("Relocation failed.");
 
-    plugin->function = reinterpret_cast<ProcessFunc>(tcc_get_symbol(state, "veksel_process_mono"));
+    plugin->function = reinterpret_cast<ProcessFunc>(tcc_get_symbol(state, "process_sample"));
 
     if (!plugin->function)
-        return fail("Symbol 'veksel_process_mono' not found.");
+        return fail("Symbol 'process_sample' not found.");
 
     m_log.write("[ok] Compilation successful.");
     return plugin;

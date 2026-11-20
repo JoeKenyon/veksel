@@ -12,10 +12,10 @@ void Log::write(std::string message)
 
     // keep the newest lines only
     if (m_lines.size() > MaxLines)
-        m_lines.erase(m_lines.begin());
+        m_lines.pop_front();
 }
 
-std::vector<std::string> Log::getLines() const
+std::deque<std::string> Log::getLines() const
 {
     std::lock_guard lock(m_mutex);
     return m_lines;
