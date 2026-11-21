@@ -1,7 +1,10 @@
+// name: 1 second delay
+// description: A simple 1 second delay
+
 float buffer[44100];
 int write_ptr = 0;
 
-veksel_main
+float process_sample(float input)
 {
     int d = (int)(44100);
     if (d < 1) d = 1;
@@ -12,3 +15,4 @@ veksel_main
     write_ptr = (write_ptr + 1) % 44100;
     return input + delayed * 0.5;
 }
+

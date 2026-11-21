@@ -14,9 +14,7 @@ namespace
         "#include <stdio.h>\n"
         "#ifndef M_PI\n"
         "#define M_PI 3.14159265358979323846\n"
-        "#endif\n"
-        "float veksel_process_mono(float input);\n"
-        "#define veksel_main float veksel_process_mono(float input)\n";
+        "#endif\n";
 
     // collects tcc diagnostics into the std::string passed as `opaque`
     void onTccError(void* opaque, const char* message)
@@ -108,8 +106,9 @@ void Compiler::loop()
         }
 
         // hand straight to audio and free any unpicked previous plugin
+        delete m_retired.exchange(nullptr, std::memory_order_acq_rel);
         delete m_incoming.exchange(raw, std::memory_order_acq_rel);
-        m_log.write("[ok] swapped with new plugin");
+        m_log.write("[ok] plugin ready");
     }
 }
 
