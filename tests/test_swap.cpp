@@ -49,7 +49,7 @@ TEST_CASE("first plugin installs", "[swap]")
     veksel::Log log;
     veksel::Engine engine{log};
 
-    engine.submitSource("veksel_main { return input * 2.0f; }");
+    engine.submitSource("float process_sample(float input) { return input * 2.0f; }");
 
     REQUIRE(driveUntil(engine, 1.0f, 2.0f));
     CHECK(engine.processSample(3.0f) == 6.0f);
@@ -61,10 +61,10 @@ TEST_CASE("swapping A -> B replaces the function", "[swap]")
     veksel::Log log;
     veksel::Engine engine{log};
 
-    engine.submitSource("veksel_main { return input + 1.0f; }");
+    engine.submitSource("float process_sample(float input) { return input + 1.0f; }");
     REQUIRE(driveUntil(engine, 0.0f, 1.0f));
 
-    engine.submitSource("veksel_main { return input * 10.0f; }");
+    engine.submitSource("float process_sample(float input) { return input * 10.0f; }");
     REQUIRE(driveUntil(engine, 2.0f, 20.0f));
 
     CHECK(engine.processSample(0.5f) == 5.0f);
@@ -76,10 +76,10 @@ TEST_CASE("plugin only changes at beginBlock", "[swap]")
     veksel::Log log;
     veksel::Engine engine{log};
 
-    engine.submitSource("veksel_main { return input + 1.0f; }");
+    engine.submitSource("float process_sample(float input) { return input + 1.0f; }");
     REQUIRE(driveUntil(engine, 0.0f, 1.0f));
 
-    engine.submitSource("veksel_main { return input * 10.0f; }");
+    engine.submitSource("float process_sample(float input) { return input * 10.0f; }");
 
     // give the compiler time to publish while skipping beginBlock
     for (int i = 0; i < 60; ++i)

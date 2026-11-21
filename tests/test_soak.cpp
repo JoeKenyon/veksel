@@ -22,7 +22,7 @@ TEST_CASE("soak: compiler survives many compiles", "[soak][compiler]")
     for (int i = 0; i < iterations; ++i)
     {
         const float mult = static_cast<float>(i % 7 + 1);
-        compiler.submit("veksel_main { return input * " + std::to_string(static_cast<int>(mult)) + ".0f; }");
+        compiler.submit("float process_sample(float input) { return input * " + std::to_string(static_cast<int>(mult)) + ".0f; }");
 
         std::unique_ptr<veksel::Plugin> plugin;
         for (auto waited = 0ms; waited < 2000ms && !plugin; waited += 2ms)
@@ -102,8 +102,8 @@ TEST_CASE("soak: engine swaps under a running audio thread", "[soak][swap]")
         bool two = true;
         while (!stop.load(std::memory_order_relaxed))
         {
-            engine.submitSource(two ? "veksel_main { return input * 2.0f; }"
-                                    : "veksel_main { return input * 3.0f; }");
+            engine.submitSource(two ? "float process_sample(float input) { return input * 2.0f; }"
+                                    : "float process_sample(float input) { return input * 3.0f; }");
             two = !two;
             std::this_thread::sleep_for(1ms);
         }
@@ -183,15 +183,15 @@ TEST_CASE("no-sanitizer stress: swaps, invalid compiles, and teardown", "[soak][
             {
                 if (step % 7 == 0)
                 {
-                    engine.submitSource("veksel_main { return broken_symbol + ; }");
+                    engine.submitSource("float process_sample(float input) { return broken_symbol + ; }");
                 }
                 else if (step % 2 == 0)
                 {
-                    engine.submitSource("veksel_main { return input * 2.0f; }");
+                    engine.submitSource("float process_sample(float input) { return input * 2.0f; }");
                 }
                 else
                 {
-                    engine.submitSource("veksel_main { return input * 3.0f; }");
+                    engine.submitSource("float process_sample(float input) { return input * 3.0f; }");
                 }
 
                 ++step;

@@ -7,6 +7,24 @@ using namespace veksel;
 
 namespace
 {
+    ImVec4 RgbToVec4(ImU32 rgbHex, float alpha = 1.0f)
+    {
+        // rgb is packed as 0x00rrggbb
+        float r = static_cast<float>((rgbHex >> 16) & 0xff) / 255.0f;
+        float g = static_cast<float>((rgbHex >> 8) & 0xff) / 255.0f;
+        float b = static_cast<float>(rgbHex & 0xff) / 255.0f;
+        return ImVec4(r, g, b, alpha);
+    }
+
+    ImU32 RgbToAbgr(ImU32 rgbHex, ImU32 alpha = 0xff)
+    {
+        // texteditor palette expects 0xaabbggrr
+        ImU32 r = (rgbHex >> 16) & 0xff;
+        ImU32 g = (rgbHex >> 8) & 0xff;
+        ImU32 b = rgbHex & 0xff;
+        return ((alpha & 0xff) << 24) | (b << 16) | (g << 8) | r;
+    }
+
     const AudioDevice* findDevice(const std::vector<AudioDevice>& list, int index)
     {
         for (const auto& d : list)
@@ -76,7 +94,7 @@ namespace
     }
 
     constexpr float kMinEditor    = 80.0f;
-    constexpr float kMinLog       = 60.0f;
+    constexpr float kLogHeight    = 250.0f;
     constexpr float kHeaderHeight = 20.0f;
     constexpr float kCollapsedLog = kHeaderHeight;
 }
@@ -91,39 +109,40 @@ UI::UI(Engine& e, Audio& a, Log& l) : m_engine(e), m_audio(a), m_log(l)
     // stylings
     ImGui::StyleColorsDark();
 
-    const ImVec4 background = {0.02f, 0.02f, 0.02f, 1.0f};
-    const ImVec4 panel      = {0.08f, 0.08f, 0.08f, 1.0f};
-    const ImVec4 control    = {0.14f, 0.14f, 0.14f, 1.0f};
-    const ImVec4 border     = {0.22f, 0.22f, 0.22f, 1.0f};
-    const ImVec4 accent     = {1.00f, 0.41f, 0.71f, 1.0f};
+    constexpr ImU32 backgroundHex = 0x050505;
+    constexpr ImU32 panelHex      = 0x141414;
+    constexpr ImU32 controlHex    = 0x242424;
+    constexpr ImU32 borderHex     = 0x383838;
+    constexpr ImU32 accentHex     = 0xff69b5;
+
+    (void)backgroundHex;
+    (void)panelHex;
+    (void)controlHex;
+    (void)borderHex;
 
     m_textEditor.SetLanguage(TextEditor::LookupLanguage("C"));
 
-    m_textEditor.SetPalette(TextEditor::GetDarkPalette());
+    TextEditor::Palette p = TextEditor::GetDarkPalette();
+    p[static_cast<int>(TextEditor::Color::border)] = RgbToAbgr(borderHex);
+    p[static_cast<int>(TextEditor::Color::background)] = RgbToAbgr(panelHex);
+    m_textEditor.SetPalette(p);
+
     m_textEditor.SetText("float process_sample(float input)\n{\n    return input;\n}");
     m_engine.submitSource("float process_sample(float input)\n{\n    return input;\n}");
 
-    /*
-    ImVec4* colors = ImGui::GetStyle().Colors;
-    colors[ImGuiCol_Button] = accent;
-    colors[ImGuiCol_ButtonHovered] = panel;
-    colors[ImGuiCol_WindowBg] = background;
-    colors[ImGuiCol_ChildBg] = control;*/
-}
+    m_textEditor.SetTopPadding(1);
+    m_textEditor.SetBottomPadding(1);
+    m_textEditor.SetLeftMargin(1);
+    m_textEditor.SetTextLeftMargin(2);
+    m_textEditor.SetShowWhitespacesEnabled(false);
 
-void UI::drawHeader()
-{
-    ImGui::BeginChild("Header", {-FLT_MIN, kHeaderHeight}, ImGuiChildFlags_Borders);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {0,0});
-    if (ImGui::Button("Settings", {0, -FLT_MIN})) m_openSettings = true;
-    ImGui::SameLine();
-    ImGui::Button("Save", {0, -FLT_MIN});
-    ImGui::SameLine();
-    ImGui::Button("Load", {0, -FLT_MIN});
-    ImGui::SameLine();
-    if(ImGui::Button("Compile", {0, -FLT_MIN})) m_engine.submitSource(m_textEditor.GetText());
-    ImGui::PopStyleVar(1);
-    ImGui::EndChild();
+
+    ImVec4* colors = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_Border] = RgbToVec4(borderHex);
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowBorderSize = 1.0f;
+    style.ChildBorderSize  = 1.0f;
 }
 
 void UI::render()
@@ -134,7 +153,7 @@ void UI::render()
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);   // default ItemSpacing kept
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {0,5});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {0,0});
     ImGui::Begin("VekselMain", nullptr, ImGuiWindowFlags_NoDecoration);
     drawHeader();
     drawEditor();
@@ -211,61 +230,60 @@ void UI::drawSettings()
     ImGui::PopStyleVar(1);
 }
 
+// allman style, lowercase comments
+void UI::drawHeader()
+{
+    ImGui::BeginChild("Header", {-FLT_MIN, kHeaderHeight}, ImGuiChildFlags_Borders);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {0, 0});
+    if (ImGui::Button("Settings", {0, -FLT_MIN})) m_openSettings = true;
+    ImGui::SameLine();
+    ImGui::Button("Save", {0, -FLT_MIN});
+    ImGui::SameLine();
+    ImGui::Button("Load", {0, -FLT_MIN});
+    ImGui::SameLine();
+    if (ImGui::Button("Compile", {0, -FLT_MIN}))
+    {
+        m_engine.submitSource(m_textEditor.GetText());
+        m_logCollapsed = false;
+    }
+    ImGui::PopStyleVar(1);
+    ImGui::EndChild();
+}
+
 void UI::drawEditor()
 {
     const float availY = ImGui::GetContentRegionAvail().y;
-    const float sp     = ImGui::GetStyle().ItemSpacing.y;
 
-    if (m_logCollapsed)
-    {
-        m_logLayoutH = kCollapsedLog;
-    }
-    else
-    {
-        const float maxLog = std::max(kMinLog, availY - kMinEditor - sp);
-        m_logHeight  = std::clamp(m_logHeight, kMinLog, maxLog);
-        m_logLayoutH = m_logHeight;
-    }
+    // fixed height when expanded, collapsed bar height when toggled
+    m_logLayoutH = m_logCollapsed ? kCollapsedLog : kLogHeight;
 
-    const float editorH = std::max(kMinEditor, availY - m_logLayoutH - sp);
+    // +1.0f compensates for overlapping 1.0f with header bottom border
+    const float editorH = std::max(kMinEditor, availY - m_logLayoutH + 1.0f);
 
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 1.0f);
     ImGui::BeginChild("Editor", {-FLT_MIN, editorH}, ImGuiChildFlags_Borders);
     m_textEditor.Render("TextEditor", {-FLT_MIN, -FLT_MIN});
     ImGui::EndChild();
-
-    if (!m_logCollapsed)
-    {
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - sp);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {0.0f, 0.0f});
-        ImGui::InvisibleButton("##splitter", {-FLT_MIN, sp});
-        ImGui::PopStyleVar();
-
-        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-        if (ImGui::IsItemActive())
-            m_logHeight -= ImGui::GetIO().MouseDelta.y;   // applied next frame
-    }
 }
 
 void UI::drawLog()
 {
-    ImGui::BeginChild("Log", {-FLT_MIN, m_logLayoutH}, ImGuiChildFlags_Borders);
+    // overlap top border by 1.0f with editor bottom border; -FLT_MIN fills remaining height
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 1.0f);
+    ImGui::BeginChild("Log", {-FLT_MIN, -FLT_MIN}, ImGuiChildFlags_Borders);
 
     ImGui::BeginChild("LogHeader", {-FLT_MIN, kHeaderHeight}, ImGuiChildFlags_None);
-    if (ImGui::Button(m_logCollapsed ? "^" : "v", {kHeaderHeight, kHeaderHeight}))
-        m_logCollapsed = !m_logCollapsed;
+    if (ImGui::Button(m_logCollapsed ? "^" : "v", {kHeaderHeight, kHeaderHeight})) m_logCollapsed = !m_logCollapsed;
 
     const ImVec2 p = ImGui::GetWindowPos();
     const float  w = ImGui::GetWindowWidth();
     const float  y = p.y + kHeaderHeight - 0.5f;
-    ImGui::GetWindowDrawList()->AddLine({p.x, y}, {p.x + w, y},
-                                        ImGui::GetColorU32(ImGuiCol_Border));
+    ImGui::GetWindowDrawList()->AddLine({p.x, y}, {p.x + w, y}, ImGui::GetColorU32(ImGuiCol_Border));
     ImGui::EndChild();
 
     if (!m_logCollapsed)
     {
-        ImGui::BeginChild("LogBody", {-FLT_MIN, -FLT_MIN}, ImGuiChildFlags_None,
-                          ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::BeginChild("LogBody", {-FLT_MIN, -FLT_MIN}, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
 
         const auto lines = m_log.getLines();
         ImGuiListClipper clipper;
@@ -275,7 +293,6 @@ void UI::drawLog()
                 ImGui::TextUnformatted(lines[i].c_str());
         clipper.End();
 
-        // follow new lines unless the user scrolled up
         if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
             ImGui::SetScrollHereY(1.0f);
 

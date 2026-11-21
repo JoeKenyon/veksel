@@ -53,7 +53,7 @@ TEST_CASE("Compiler produces a working plugin", "[compiler]")
     veksel::Log log;
     veksel::Compiler compiler{log};
 
-    compiler.submit("veksel_main { return input * 0.5f; }");
+    compiler.submit("float process_sample(float input){ return input * 0.5f; }");
 
     auto plugin = waitForIncoming(compiler);
     REQUIRE(plugin != nullptr);
@@ -67,7 +67,7 @@ TEST_CASE("Compiler rejects broken source", "[compiler]")
     veksel::Log log;
     veksel::Compiler compiler{log};
 
-    compiler.submit("veksel_main { return nope; }");
+    compiler.submit("float process_sample(float input) { return nope; }");
 
     CHECK(waitForIncoming(compiler, 500ms) == nullptr);
     CHECK(hasErrorLog(log));
@@ -91,7 +91,7 @@ TEST_CASE("Compiler handles math functions from the prelude", "[compiler]")
     veksel::Log log;
     veksel::Compiler compiler{log};
 
-    compiler.submit("veksel_main { return sinf(input); }");
+    compiler.submit("float process_sample(float input) { return sinf(input); }");
 
     auto plugin = waitForIncoming(compiler);
     REQUIRE(plugin != nullptr);
