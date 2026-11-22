@@ -617,11 +617,14 @@ void UI::drawHeader()
         m_logCollapsed = false;
     }
     ImGui::SameLine();
+
+    ImGui::BeginDisabled(m_engine.isCompiling());
     if (accentButton(ICON_PLAY, "Compile", {wC, -FLT_MIN}))
     {
         m_engine.submitSource(m_textEditor.GetText());
         m_logCollapsed = false;
     }
+    ImGui::EndDisabled();
 
     ImGui::PopStyleVar(2);
     ImGui::EndChild();
@@ -654,10 +657,19 @@ void UI::drawLog()
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {10, 0});
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-    if (iconButton(m_logCollapsed ? ICON_UP : ICON_DOWN, "LOG", {-1, kLogHeaderH}, abgr(kDim), true))
+
+    const float clearW = btnW(ICON_X, "Clear");
+    const float logW   = std::max(1.0f, ImGui::GetContentRegionAvail().x - clearW);
+    if (iconButton(m_logCollapsed ? ICON_UP : ICON_DOWN, "LOG", {logW, kLogHeaderH}, abgr(kDim), true))
     {
         m_logCollapsed = !m_logCollapsed;
     }
+    ImGui::SameLine(0, 0);
+    if (iconButton(ICON_X, "Clear", {clearW, kLogHeaderH}, abgr(kDim)))
+    {
+        m_log.clear();
+    }
+
     ImGui::PopStyleColor();
     ImGui::PopStyleVar(2);
 

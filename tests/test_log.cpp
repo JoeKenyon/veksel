@@ -5,7 +5,6 @@
 #include <thread>
 #include <vector>
 
-// logs stay in the order we write them
 TEST_CASE("Log stores lines in order", "[log]")
 {
     veksel::Log log;
@@ -18,7 +17,6 @@ TEST_CASE("Log stores lines in order", "[log]")
     CHECK(lines[1] == "second");
 }
 
-// clearing wipes everything
 TEST_CASE("Log clear empties", "[log]")
 {
     veksel::Log log;
@@ -27,7 +25,6 @@ TEST_CASE("Log clear empties", "[log]")
     CHECK(log.getLines().empty());
 }
 
-// the log keeps the newest MaxLines and drops the oldest
 TEST_CASE("Log is capped", "[log]")
 {
     veksel::Log log;
@@ -42,7 +39,6 @@ TEST_CASE("Log is capped", "[log]")
     CHECK(lines.back() == std::to_string(total - 1));
 }
 
-// many threads writing at once lose nothing (total stays under the cap)
 TEST_CASE("Log is thread safe", "[log]")
 {
     veksel::Log log;

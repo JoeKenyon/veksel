@@ -3,13 +3,13 @@
 #include "Log.h"
 
 #include <chrono>
+#include <string>
 #include <thread>
 
 using namespace std::chrono_literals;
 
 namespace
 {
-    // step the audio block swap until processSample(probe) hits expect or times out
     bool driveUntil(
         veksel::Engine& engine,
         float probe,
@@ -20,11 +20,8 @@ namespace
         for (auto waited = 0ms; waited < timeout; waited += 5ms)
         {
             engine.beginBlock();
-
             if (engine.processSample(probe) == expect)
-            {
                 return true;
-            }
 
             std::this_thread::sleep_for(5ms);
         }
@@ -32,7 +29,6 @@ namespace
     }
 }
 
-// before any source is loaded the engine is a passthrough
 TEST_CASE("no plugin: passthrough", "[swap]")
 {
     veksel::Log log;
@@ -43,7 +39,6 @@ TEST_CASE("no plugin: passthrough", "[swap]")
     CHECK(engine.processSample(-0.5f) == -0.5f);
 }
 
-// a submitted plugin goes live
 TEST_CASE("first plugin installs", "[swap]")
 {
     veksel::Log log;
@@ -55,7 +50,6 @@ TEST_CASE("first plugin installs", "[swap]")
     CHECK(engine.processSample(3.0f) == 6.0f);
 }
 
-// swapping from one plugin to another
 TEST_CASE("swapping A -> B replaces the function", "[swap]")
 {
     veksel::Log log;
@@ -70,7 +64,6 @@ TEST_CASE("swapping A -> B replaces the function", "[swap]")
     CHECK(engine.processSample(0.5f) == 5.0f);
 }
 
-// a plugin never changes without beginBlock
 TEST_CASE("plugin only changes at beginBlock", "[swap]")
 {
     veksel::Log log;
@@ -91,4 +84,24 @@ TEST_CASE("plugin only changes at beginBlock", "[swap]")
     // once beginBlock runs, the new plugin takes over
     engine.beginBlock();
     CHECK(engine.processSample(2.0f) == 20.0f);
+}
+
+TEST_CASE("state resets on every successful compile", "[swap]")
+{
+    veksel::Log log;
+    veksel::Engine engine{log};
+
+    const std::string counterSrc =
+        "static int count = 0;\n"
+        "float process_sample(float input) { (void)input; return (float)(++count); }\n";
+
+    engine.submitSource(counterSrc);
+    REQUIRE(driveUntil(engine, 0.0f, 1.0f));
+    CHECK(engine.processSample(0.0f) == 2.0f);
+    CHECK(engine.processSample(0.0f) == 3.0f);
+
+    // recompiling must reinitialize globals/statics back to 1
+    engine.submitSource(counterSrc);
+    REQUIRE(driveUntil(engine, 0.0f, 1.0f));
+    CHECK(engine.processSample(0.0f) == 2.0f);
 }

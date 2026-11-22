@@ -47,9 +47,6 @@ namespace veksel
             float s = in ? in[i * a.m_inChannels + a.m_inChannel] : 0.0f;
             s = a.m_engine->processSample(s);
 
-            // plugins can make nan, inf or huge values. protect the speakers
-            if (!std::isfinite(s))
-                s = 0.0f;
             s = std::clamp(s, -1.0f, 1.0f);
 
             // silence every channel except our pair. an odd leftover has no second one

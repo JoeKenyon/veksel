@@ -96,7 +96,6 @@ configure_file(
 # core library
 add_library(veksel_core
     "${SRC_DIR}/Log.cpp"
-    "${SRC_DIR}/Compiler.cpp"
     "${SRC_DIR}/Engine.cpp"
     "${SRC_DIR}/Audio.cpp"
 )

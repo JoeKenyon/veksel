@@ -51,8 +51,8 @@ You get access to `<math.h>`, `<stdlib.h>`, `<stdio.h>` and `M_PI`.
 - **Audio**: turn the audio stream on and off.
 - **Compile**: compile the editor contents and hot-swap it in.
 
-The log panel at the bottom can be collapsed with the bar above it. Errors show in
-red and successes in green.
+The log panel at the bottom can be collapsed with the bar above it and cleared with
+Clear on the right. Errors show in red and successes in green.
 
 ### Settings
 
@@ -94,17 +94,21 @@ Three threads, one job each:
 - **compiler**: TinyCC compiles your C straight into executable memory on its own thread, so the UI stays responsive while it builds.
 - **audio**: PortAudio callback, runs the plugin once per sample.
 
-Plugins move between the compiler and audio threads through two lock-free slots,
-`incoming` and `retired`:
+Plugins move between the compiler and audio threads through a lock-free atomic slot
+(m_pending) and a lock-free SPSC ring buffer (m_retired):
 
-1. The compiler thread finishes a plugin and publishes it to `incoming`. If an
-   earlier plugin was never picked up, it is freed and replaced.
-2. At the start of each audio block, the audio thread checks `incoming`. If a
-   plugin is waiting and `retired` is empty, it takes the new plugin and puts the
-   old one in `retired`. The swap happens between blocks, so it is never halfway
-   through running the old plugin.
-3. At the start of its next compile, the compiler thread frees whatever is in
-   `retired`.
+The compiler thread builds a new plugin in a fresh TCCState (resetting all
+globals and static variables) and atomically swaps it into m_pending. If an
+earlier build was never picked up (for example, while audio is stopped), it is
+freed immediately.
+
+At the start of each audio block, the audio thread atomically takes m_pending
+if one is waiting, pushes the previous plugin into m_retired, and switches to
+the new one. Because swaps only happen between blocks, it is never halfway
+through running the old plugin.
+
+The compiler thread drains m_retired before every compile and every 100 ms
+while idle, freeing old plugins and TCCStates off the audio thread.
 
 The audio thread never locks, allocates, logs or frees memory. The only mutex is
 between the main thread and the compiler thread, for queuing source and shutdown.
