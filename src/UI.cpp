@@ -1,5 +1,9 @@
 #include "UI.h"
 
+#include "FontMono.h"
+#include "FontAwesome.h"
+#include "Paths.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cfloat>
@@ -29,7 +33,7 @@ namespace
 
     constexpr float kMinEditor = 80, kLogH = 250, kLogHeaderH = 24, kHeaderH = 48, kBtnH = 28;
     constexpr float kIconSize = 13, kLogoSize = 6, kIconGap = 8;
-    constexpr const char* kPresetDir = "presets";
+    fs::path presetDir() { return veksel::exeDir() / "presets"; }
 
     // theme as 0xrrggbb
     constexpr ImU32 kPanel = 0x141414, kPanelAlt = 0x1b1b1b, kBorder = 0x2e2e2e;
@@ -49,14 +53,6 @@ namespace
     ImU32 abgr(ImU32 rgb)
     {
         return 0xff000000 | ((rgb & 0xff) << 16) | (rgb & 0xff00) | ((rgb >> 16) & 0xff);
-    }
-
-    // null if the file isn't there
-    ImFont* loadFont(const char* file, float size)
-    {
-        std::error_code ec;
-        const auto path = fs::path(VEKSEL_ASSET_DIR) / file;
-        return fs::exists(path, ec) ? ImGui::GetIO().Fonts->AddFontFromFileTTF(path.string().c_str(), size) : nullptr;
     }
 
     void applyTheme()
@@ -297,8 +293,8 @@ namespace
     bool savePreset(const std::string& name, const std::string& desc, const std::string& code)
     {
         std::error_code ec;
-        fs::create_directories(kPresetDir, ec);
-        std::ofstream f(fs::path(kPresetDir) / (cleanName(name) + ".veksel"));
+        fs::create_directories(presetDir(), ec);
+        std::ofstream f(fs::path(presetDir()) / (cleanName(name) + ".veksel"));
         if (ec || !f)
         {
             return false;
@@ -318,7 +314,7 @@ namespace
         std::vector<PresetEntry> out;
         std::error_code ec;
 
-        for (const auto& e : fs::directory_iterator(kPresetDir, ec))
+        for (const auto& e : fs::directory_iterator(presetDir(), ec))
         {
             std::ifstream f(e.path());
             if (e.path().extension() != ".veksel" || !f)
@@ -402,21 +398,60 @@ namespace
     }
 }
 
-UI::UI(Engine& e, Audio& a, Log& l) : m_engine(e), m_audio(a), m_log(l)
+UI::UI(Engine& e, Audio& a, Log& l)
+    : m_engine(e), m_audio(a), m_log(l)
 {
     ImGui::GetStyle().FontSizeBase = 13.0f;
-    ImGui::GetIO().Fonts->AddFontDefaultBitmap();
-    g_icons = loadFont("fa-solid-900.ttf", kIconSize);
-    g_logo  = loadFont("DejaVuSansMono.ttf", kLogoSize);
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    // default bitmap font for all normal text
+    io.Fonts->AddFontDefaultBitmap();
+
+    // logo font
+    ImFontConfig logoConfig;
+    logoConfig.FontDataOwnedByAtlas = false;
+
+    g_logo = io.Fonts->AddFontFromMemoryTTF(
+        const_cast<unsigned char*>(assets_DejaVuSansMono_ttf),
+        assets_DejaVuSansMono_ttf_len,
+        kLogoSize,
+        &logoConfig
+    );
+
+    // font awesome icons
+    static const ImWchar iconRanges[] = {
+        0xf000, 0xf8ff,
+        0
+    };
+
+    ImFontConfig iconConfig;
+    iconConfig.FontDataOwnedByAtlas = false;
+
+    g_icons = io.Fonts->AddFontFromMemoryTTF(
+        const_cast<unsigned char*>(assets_fa_solid_900_ttf),
+        assets_fa_solid_900_ttf_len,
+        kIconSize,
+        &iconConfig,
+        iconRanges
+    );
+
     applyTheme();
 
     m_textEditor.SetLanguage(TextEditor::LookupLanguage("C"));
+
     TextEditor::Palette p = TextEditor::GetDarkPalette();
     p[static_cast<int>(TextEditor::Color::background)] = abgr(kPanel);
+
     m_textEditor.SetPalette(p);
     m_textEditor.SetShowWhitespacesEnabled(false);
 
-    const char* code = "float process_sample(float input)\n{\n    return input;\n}";
+    const char* code =
+        "float process_sample(float input)\n"
+        "{\n"
+        "    return input;\n"
+        "}";
+
     m_textEditor.SetText(code);
     m_engine.submitSource(code);
 }

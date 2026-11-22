@@ -58,7 +58,7 @@ if(TARGET portaudio)
     target_compile_options(portaudio PRIVATE -Wno-deprecated-declarations)
 endif()
 
-# setup tiny cc
+# setup tiny cc (only libtcc.a is needed: plugins are built with -nostdlib)
 find_program(TINYCC_MAKE NAMES gmake make REQUIRED)
 file(MAKE_DIRECTORY "${TINYCC_BUILD}")
 
@@ -76,7 +76,7 @@ set(TINYCC_LIB "${TINYCC_BUILD}/libtcc.a")
 
 add_custom_command(
     OUTPUT "${TINYCC_LIB}"
-    COMMAND "${TINYCC_MAKE}" -j
+    COMMAND "${TINYCC_MAKE}" -j libtcc.a
     WORKING_DIRECTORY "${TINYCC_BUILD}"
     DEPENDS "${TINYCC_BUILD}/config.mak"
     VERBATIM
@@ -93,21 +93,15 @@ configure_file(
     COPYONLY
 )
 
-file(COPY "${TINYCC_SOURCE}/include" DESTINATION "${TINYCC_BUILD}")
-
 # core library
 add_library(veksel_core
     "${SRC_DIR}/Log.cpp"
     "${SRC_DIR}/Engine.cpp"
     "${SRC_DIR}/Audio.cpp"
+    "${SRC_DIR}/Builtins.cpp"
 )
 
 add_dependencies(veksel_core tinycc_build)
-
-target_compile_definitions(veksel_core PUBLIC
-    VEKSEL_TCC_LIB_PATH="${TINYCC_BUILD}"
-    VEKSEL_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
-)
 
 target_include_directories(veksel_core PUBLIC
     "${SRC_DIR}"
@@ -129,6 +123,7 @@ add_executable(veksel
     "${SRC_DIR}/main.cpp"
     "${SRC_DIR}/UI.cpp"
     "${SRC_DIR}/Platform.cpp"
+    "${SRC_DIR}/Paths.cpp"
     "${TEXTEDITOR_DIR}/TextEditor.cpp"
 )
 
@@ -137,7 +132,7 @@ target_include_directories(veksel PRIVATE
     "${TEXTEDITOR_DIR}"
 )
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# presets live next to the executable
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/presets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(veksel PRIVATE
@@ -163,3 +158,6 @@ if(VEKSEL_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+install(TARGETS veksel RUNTIME DESTINATION .)
+install(DIRECTORY presets DESTINATION .)

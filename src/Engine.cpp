@@ -1,9 +1,11 @@
 #include "Engine.h"
+#include "Builtins.h"
 
 #include <libtcc.h>
 
 #include <chrono>
 #include <cmath>
+#include <string_view>
 #include <utility>
 
 namespace veksel
@@ -21,14 +23,6 @@ namespace veksel
             if (tcc) tcc_delete(tcc);
         }
     };
-
-    constexpr std::string_view Prelude =
-        "#include <math.h>\n"
-        "#include <stdlib.h>\n"
-        "#include <stdio.h>\n"
-        "#ifndef M_PI\n"
-        "#define M_PI 3.14159265358979323846\n"
-        "#endif\n";
 
     static void tccErrorCallback(void* opaque, const char* message)
     {
@@ -125,11 +119,15 @@ namespace veksel
         }
 
         tcc_set_error_func(s, &errorLog, &tccErrorCallback);
-        tcc_set_lib_path(s, VEKSEL_TCC_LIB_PATH); // make this portable
-        tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
 
-        // give user code math.h out of the box without needing an explicit #include
-        const std::string fullSource = std::string(Prelude).append("#line 1\n").append(source);
+        // no libc, no libtcc1.a, no headers on disk: plugins only see what Builtins.cpp registers.
+        // -nostdlib has to be set before the output type
+        tcc_set_options(s, "-nostdlib");
+        tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+        addBuiltinSymbols(s);
+
+        // declarations for the builtins (math etc.), so user code needs no #include
+        const std::string fullSource = std::string(builtinDeclarations()).append("#line 1\n").append(source);
 
         if (tcc_compile_string(s, fullSource.c_str()) == -1 || tcc_relocate(s) < 0)
         {
@@ -161,7 +159,7 @@ namespace veksel
         while (!m_stopRequested)
         {
             // poll every 100ms so retired plugins get freed even if nobody recompiles
-            m_compilerCv.wait_for(lock, std::chrono::milliseconds(100), [this] 
+            m_compilerCv.wait_for(lock, std::chrono::milliseconds(100), [this]
             {
                 return m_hasPendingSource || m_stopRequested;
             });
