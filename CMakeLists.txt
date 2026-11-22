@@ -27,8 +27,9 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 add_subdirectory("${GLFW_DIR}" EXCLUDE_FROM_ALL)
 
-# setup opengl
+# setup opengl and threads
 find_package(OpenGL REQUIRED)
+find_package(Threads REQUIRED)
 
 # setup imgui
 add_library(veksel_imgui STATIC
@@ -68,8 +69,8 @@ endif()
 file(MAKE_DIRECTORY "${TINYCC_BUILD}")
 
 if(WIN32)
-    find_program(TINYCC_SH NAMES bash sh REQUIRED)
-    find_program(TINYCC_MAKE NAMES mingw32-make make REQUIRED)
+    find_program(TINYCC_SH NAMES bash REQUIRED)
+    find_program(TINYCC_MAKE NAMES make REQUIRED)
 
     file(TO_CMAKE_PATH "${TINYCC_SOURCE}" TINYCC_SOURCE_POSIX)
     file(TO_CMAKE_PATH "${TINYCC_BUILD}" TINYCC_BUILD_POSIX)
@@ -134,19 +135,22 @@ add_library(veksel_core
 
 add_dependencies(veksel_core tinycc_build)
 
-target_include_directories(veksel_core PUBLIC
-    "${SRC_DIR}"
-    "${TINYCC_BUILD}"
+target_include_directories(veksel_core
+    PUBLIC "${SRC_DIR}"
+    PRIVATE "${TINYCC_BUILD}"
 )
 
-target_link_libraries(veksel_core PUBLIC
-    portaudio
-    tinycc
-    ${CMAKE_DL_LIBS}
+target_link_libraries(veksel_core
+    PUBLIC
+        portaudio
+        tinycc
+        ${CMAKE_DL_LIBS}
+    PRIVATE
+        Threads::Threads
 )
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(veksel_core PUBLIC pthread m)
+    target_link_libraries(veksel_core PRIVATE m)
 endif()
 
 # main app
@@ -169,8 +173,6 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/presets"
 target_link_libraries(veksel PRIVATE
     veksel_core
     veksel_imgui
-    glfw
-    OpenGL::GL
 )
 
 if(APPLE)
