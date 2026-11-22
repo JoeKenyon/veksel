@@ -1,4 +1,6 @@
+
 cmake_minimum_required(VERSION 3.16)
+
 project(veksel LANGUAGES C CXX)
 
 if(APPLE)
@@ -11,13 +13,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(SRC_DIR          "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(IMGUI_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")
-set(TEXTEDITOR_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ImGuiColorTextEdit")
-set(GLFW_DIR         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/glfw")
-set(PORTAUDIO_DIR    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/portaudio")
-set(TINYCC_SOURCE    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tinycc")
-set(TINYCC_BUILD     "${CMAKE_CURRENT_BINARY_DIR}/tinycc")
+set(SRC_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(IMGUI_DIR      "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")
+set(TEXTEDITOR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ImGuiColorTextEdit")
+set(GLFW_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/third_party/glfw")
+set(PORTAUDIO_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/portaudio")
+set(TINYCC_SOURCE  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tinycc")
+set(TINYCC_BUILD   "${CMAKE_CURRENT_BINARY_DIR}/tinycc")
 
 # setup glfw
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -58,15 +60,36 @@ if(TARGET portaudio)
     target_compile_options(portaudio PRIVATE -Wno-deprecated-declarations)
 endif()
 
-# setup tiny cc (only libtcc.a is needed: plugins are built with -nostdlib)
-find_program(TINYCC_MAKE NAMES gmake make REQUIRED)
+# setup tinycc
 file(MAKE_DIRECTORY "${TINYCC_BUILD}")
 
-execute_process(
-    COMMAND "${TINYCC_SOURCE}/configure" "--source-path=${TINYCC_SOURCE}" --enable-static --config-bcheck=no
-    WORKING_DIRECTORY "${TINYCC_BUILD}"
-    RESULT_VARIABLE TINYCC_CONFIGURE_RESULT
-)
+if(WIN32)
+    find_program(TINYCC_SH NAMES bash sh REQUIRED)
+    find_program(TINYCC_MAKE NAMES mingw32-make make REQUIRED)
+
+    file(TO_CMAKE_PATH "${TINYCC_SOURCE}" TINYCC_SOURCE_POSIX)
+    file(TO_CMAKE_PATH "${TINYCC_BUILD}" TINYCC_BUILD_POSIX)
+
+    execute_process(
+        COMMAND "${TINYCC_SH}" "${TINYCC_SOURCE_POSIX}/configure"
+            "--source-path=${TINYCC_SOURCE_POSIX}"
+            --enable-static
+            --config-bcheck=no
+        WORKING_DIRECTORY "${TINYCC_BUILD}"
+        RESULT_VARIABLE TINYCC_CONFIGURE_RESULT
+    )
+else()
+    find_program(TINYCC_MAKE NAMES gmake make REQUIRED)
+
+    execute_process(
+        COMMAND "${TINYCC_SOURCE}/configure"
+            "--source-path=${TINYCC_SOURCE}"
+            --enable-static
+            --config-bcheck=no
+        WORKING_DIRECTORY "${TINYCC_BUILD}"
+        RESULT_VARIABLE TINYCC_CONFIGURE_RESULT
+    )
+endif()
 
 if(NOT TINYCC_CONFIGURE_RESULT EQUAL 0)
     message(FATAL_ERROR "TinyCC configure failed")
@@ -85,7 +108,9 @@ add_custom_command(
 add_custom_target(tinycc_build DEPENDS "${TINYCC_LIB}")
 
 add_library(tinycc STATIC IMPORTED GLOBAL)
-set_target_properties(tinycc PROPERTIES IMPORTED_LOCATION "${TINYCC_LIB}")
+set_target_properties(tinycc PROPERTIES
+    IMPORTED_LOCATION "${TINYCC_LIB}"
+)
 
 configure_file(
     "${TINYCC_SOURCE}/libtcc.h"
@@ -132,8 +157,8 @@ target_include_directories(veksel PRIVATE
     "${TEXTEDITOR_DIR}"
 )
 
-# presets live next to the executable
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/presets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/presets"
+     DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 
 target_link_libraries(veksel PRIVATE
     veksel_core

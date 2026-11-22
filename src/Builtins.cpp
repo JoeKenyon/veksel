@@ -3,9 +3,10 @@
 
 #include <libtcc.h>
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 namespace veksel
 {
@@ -14,7 +15,7 @@ namespace veksel
         struct Builtin
         {
             const char* name;
-            const char* decl; // nullptr means no user-facing declaration
+            const char* decl;
             void* addr;
         };
 
@@ -24,13 +25,12 @@ namespace veksel
             return reinterpret_cast<void*>(fn);
         }
 
-        #define F1(fn) { #fn, "float "  #fn "(float);",         addrOf(static_cast<float  (*)(float)>(&::fn)) }
-        #define F2(fn) { #fn, "float "  #fn "(float,float);",   addrOf(static_cast<float  (*)(float, float)>(&::fn)) }
-        #define D1(fn) { #fn, "double " #fn "(double);",        addrOf(static_cast<double (*)(double)>(&::fn)) }
-        #define D2(fn) { #fn, "double " #fn "(double,double);", addrOf(static_cast<double (*)(double, double)>(&::fn)) }
+#define F1(fn) { #fn, "float " #fn "(float);", addrOf(static_cast<float (*)(float)>(&::fn)) }
+#define F2(fn) { #fn, "float " #fn "(float,float);", addrOf(static_cast<float (*)(float, float)>(&::fn)) }
+#define D1(fn) { #fn, "double " #fn "(double);", addrOf(static_cast<double (*)(double)>(&::fn)) }
+#define D2(fn) { #fn, "double " #fn "(double,double);", addrOf(static_cast<double (*)(double, double)>(&::fn)) }
 
-        // tinycc codegen helpers for 64-bit integer conversions
-        #if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64)
 
         float u64ToF32(unsigned long long v)
         {
@@ -62,7 +62,7 @@ namespace veksel
             return static_cast<long long>(v);
         }
 
-        #endif
+#endif
 
         const Builtin kBuiltins[] =
         {
@@ -123,7 +123,7 @@ namespace veksel
                 addrOf(static_cast<void* (*)(void*, const void*, size_t)>(&::memcpy))
             },
 
-            #if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64)
 
             // tinycc runtime helpers
             { "__floatundisf", nullptr, addrOf(&u64ToF32) },
@@ -133,13 +133,13 @@ namespace veksel
             { "__fixsfdi",     nullptr, addrOf(&f32ToI64) },
             { "__fixdfdi",     nullptr, addrOf(&f64ToI64) },
 
-            #endif
+#endif
         };
 
-        #undef F1
-        #undef F2
-        #undef D1
-        #undef D2
+#undef F1
+#undef F2
+#undef D1
+#undef D2
     }
 
     const std::string& builtinDeclarations()
