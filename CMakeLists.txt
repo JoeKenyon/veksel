@@ -57,7 +57,11 @@ set(PA_USE_JACK OFF CACHE BOOL "" FORCE)
 add_subdirectory("${PORTAUDIO_DIR}" EXCLUDE_FROM_ALL)
 
 if(TARGET portaudio)
-    target_compile_options(portaudio PRIVATE -Wno-deprecated-declarations)
+    if(MSVC)
+        target_compile_options(portaudio PRIVATE /wd4996)
+    else()
+        target_compile_options(portaudio PRIVATE -Wno-deprecated-declarations)
+    endif()
 endif()
 
 # setup tinycc
@@ -73,6 +77,7 @@ if(WIN32)
     execute_process(
         COMMAND "${TINYCC_SH}" "${TINYCC_SOURCE_POSIX}/configure"
             "--source-path=${TINYCC_SOURCE_POSIX}"
+            "--prefix=${TINYCC_BUILD_POSIX}"
             --enable-static
             --config-bcheck=no
         WORKING_DIRECTORY "${TINYCC_BUILD}"
@@ -84,6 +89,7 @@ else()
     execute_process(
         COMMAND "${TINYCC_SOURCE}/configure"
             "--source-path=${TINYCC_SOURCE}"
+            "--prefix=${TINYCC_BUILD}"
             --enable-static
             --config-bcheck=no
         WORKING_DIRECTORY "${TINYCC_BUILD}"
