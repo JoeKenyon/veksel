@@ -1,5 +1,6 @@
 [![macOS](https://github.com/JoeKenyon/veksel/actions/workflows/macos.yml/badge.svg)](https://github.com/JoeKenyon/veksel/actions/workflows/macos.yml)
 [![Linux](https://github.com/JoeKenyon/veksel/actions/workflows/linux.yml/badge.svg)](https://github.com/JoeKenyon/veksel/actions/workflows/linux.yml)
+[![Windows](https://github.com/JoeKenyon/veksel/actions/workflows/windows.yml/badge.svg)](https://github.com/JoeKenyon/veksel/actions/workflows/windows.yml)
 
 # Veksel
 
@@ -25,15 +26,17 @@ cmake --install build --prefix dist
 ./dist/veksel
 ```
 
-You need CMake 3.16+, a C++20 compiler and `make`. Everything else (GLFW, PortAudio,
-Dear ImGui, TinyCC, the text editor) comes in as submodules, so there's nothing to
-install and no clang needed. TinyCC is what compiles your code.
+You need CMake 3.16+ and a C++20 compiler (AppleClang, GCC, Clang, or MSVC). Everything else (GLFW, PortAudio, Dear ImGui, TinyCC, the text editor) is vendored as submodules, and TinyCC is built natively inside CMake with no external package managers or MSYS2 build scripts required. TinyCC compiles your plugin code at runtime.
 
 To build and run tests, omit -DVEKSEL_BUILD_TESTS=OFF (CMake downloads Catch2 at
 configure time):
 
 ```
-ctest --test-dir build --output-on-failure
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DVEKSEL_BUILD_TESTS=ON
+
+cmake --build build --config Release
+ 
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 ## Using it
@@ -136,7 +139,7 @@ reload.
 - A plugin that crashes (segfault) or never returns (infinite loop) takes the whole program down.
 - Plugins don't know the sample rate.
 - TinyCC doesn't optimise, so plugin code runs slower than it would from clang with `-O2`.
-- Only tried on macOS (Apple Silicon). Linux is untested and Windows isn't supported yet.
+- Cross-platform builds and tests are currently only verified via CI (macOS, Linux, and Windows).
 - Your code isn't saved for you. It starts from a passthrough every launch, so use Save.
 
 ## TODO
@@ -144,4 +147,3 @@ reload.
 - [ ] Survive a broken plugin: run a test in a new process before loading, and don't load if it breaks.
 - [ ] Expose the sample rate to plugins.
 - [ ] Stereo plugins.
-- [ ] Make it cross platform
