@@ -93,6 +93,8 @@ configure_file(
     COPYONLY
 )
 
+file(COPY "${TINYCC_SOURCE}/include" DESTINATION "${TINYCC_BUILD}")
+
 # core library
 add_library(veksel_core
     "${SRC_DIR}/Log.cpp"
