@@ -13,17 +13,25 @@ Live-coded audio effects. Edit C in the window, press Compile, hear the change i
 
 ```
 git clone --recursive https://github.com/JoeKenyon/veksel
+
 cd veksel
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DVEKSEL_BUILD_TESTS=OFF
+
 cmake --build build
-./build/veksel
+
+cmake --install build --prefix dist
+
+./dist/veksel
 ```
 
 You need CMake 3.16+, a C++20 compiler and `make`. Everything else (GLFW, PortAudio,
 Dear ImGui, TinyCC, the text editor) comes in as submodules, so there's nothing to
 install and no clang needed. TinyCC is what compiles your code.
 
-Tests use Catch2, which CMake downloads at configure time:
+To build and run tests, omit -DVEKSEL_BUILD_TESTS=OFF (CMake downloads Catch2 at
+configure time):
+
 ```
 ctest --test-dir build --output-on-failure
 ```
@@ -42,7 +50,8 @@ float process_sample(float input)
 Press **Compile**. If it builds, the new code is swapped into the running stream.
 If it doesn't, the errors show in the log with line numbers that match the editor,
 and the previous plugin keeps playing.
-You get access to `<math.h>`, `<stdlib.h>`, `<stdio.h>` and `M_PI`.
+
+Plugin code gets `M_PI`, `RAND_MAX`, float and double math functions (`sinf`, `cosf`,`tanhf`, `powf`, `sin`, `cos`, etc.), and `abs`, `rand`, and `srand`. Standard headers like `<stdio.h>` and memory routines are not exposed.
 
 ### Header buttons
 
