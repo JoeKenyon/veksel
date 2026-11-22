@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.16)
 
 project(veksel LANGUAGES C CXX)
@@ -18,8 +17,8 @@ set(IMGUI_DIR      "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")
 set(TEXTEDITOR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ImGuiColorTextEdit")
 set(GLFW_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/third_party/glfw")
 set(PORTAUDIO_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/portaudio")
-set(TINYCC_SOURCE  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tinycc")
-set(TINYCC_BUILD   "${CMAKE_CURRENT_BINARY_DIR}/tinycc")
+set(TINYCC_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tinycc")
+set(TINYCC_INC_DIR "${CMAKE_CURRENT_BINARY_DIR}/tinycc_inc")
 
 # setup glfw
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -65,35 +64,34 @@ if(TARGET portaudio)
     endif()
 endif()
 
-# setup tinycc
-file(MAKE_DIRECTORY "${TINYCC_BUILD}")
+# setup tinycc natively via cmake
+file(MAKE_DIRECTORY "${TINYCC_INC_DIR}")
+configure_file("${TINYCC_DIR}/libtcc.h" "${TINYCC_INC_DIR}/libtcc.h" COPYONLY)
 
 if(WIN32)
-    find_program(TINYCC_SH NAMES bash REQUIRED)
-    find_program(TINYCC_MAKE NAMES make REQUIRED)
-
-    file(TO_CMAKE_PATH "${TINYCC_SOURCE}" TINYCC_SOURCE_POSIX)
-    file(TO_CMAKE_PATH "${TINYCC_BUILD}" TINYCC_BUILD_POSIX)
+    find_program(TINYCC_SH NAMES bash sh REQUIRED)
+    file(TO_CMAKE_PATH "${TINYCC_DIR}" TINYCC_DIR_POSIX)
+    file(TO_CMAKE_PATH "${TINYCC_INC_DIR}" TINYCC_INC_POSIX)
+    string(REGEX REPLACE "^([A-Za-z]):/" "/\\1/" TINYCC_DIR_MSYS "${TINYCC_DIR_POSIX}")
+    string(TOLOWER "${TINYCC_DIR_MSYS}" TINYCC_DIR_MSYS)
+    string(REGEX REPLACE "^([A-Za-z]):/" "/\\1/" TINYCC_INC_MSYS "${TINYCC_INC_POSIX}")
+    string(TOLOWER "${TINYCC_INC_MSYS}" TINYCC_INC_MSYS)
 
     execute_process(
-        COMMAND "${TINYCC_SH}" "${TINYCC_SOURCE_POSIX}/configure"
-            "--source-path=${TINYCC_SOURCE_POSIX}"
-            "--prefix=${TINYCC_BUILD_POSIX}"
-            --enable-static
+        COMMAND "${TINYCC_SH}" "${TINYCC_DIR_MSYS}/configure"
+            "--source-path=${TINYCC_DIR_MSYS}"
+            "--prefix=${TINYCC_INC_MSYS}"
             --config-bcheck=no
-        WORKING_DIRECTORY "${TINYCC_BUILD}"
+        WORKING_DIRECTORY "${TINYCC_INC_DIR}"
         RESULT_VARIABLE TINYCC_CONFIGURE_RESULT
     )
 else()
-    find_program(TINYCC_MAKE NAMES gmake make REQUIRED)
-
     execute_process(
-        COMMAND "${TINYCC_SOURCE}/configure"
-            "--source-path=${TINYCC_SOURCE}"
-            "--prefix=${TINYCC_BUILD}"
-            --enable-static
+        COMMAND "${TINYCC_DIR}/configure"
+            "--source-path=${TINYCC_DIR}"
+            "--prefix=${TINYCC_INC_DIR}"
             --config-bcheck=no
-        WORKING_DIRECTORY "${TINYCC_BUILD}"
+        WORKING_DIRECTORY "${TINYCC_INC_DIR}"
         RESULT_VARIABLE TINYCC_CONFIGURE_RESULT
     )
 endif()
@@ -102,28 +100,60 @@ if(NOT TINYCC_CONFIGURE_RESULT EQUAL 0)
     message(FATAL_ERROR "TinyCC configure failed")
 endif()
 
-set(TINYCC_LIB "${TINYCC_BUILD}/libtcc.a")
+set(TINYCC_TARGET_DEFS "")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|ARM64")
+    list(APPEND TINYCC_TARGET_DEFS TCC_TARGET_ARM64=1)
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    list(APPEND TINYCC_TARGET_DEFS TCC_TARGET_X86_64=1)
+else()
+    list(APPEND TINYCC_TARGET_DEFS TCC_TARGET_I386=1)
+endif()
 
+if(APPLE)
+    list(APPEND TINYCC_TARGET_DEFS TCC_TARGET_MACHO=1)
+elseif(WIN32)
+    list(APPEND TINYCC_TARGET_DEFS TCC_TARGET_PE=1)
+endif()
+
+add_executable(tinycc_c2str "${TINYCC_DIR}/conftest.c")
+target_include_directories(tinycc_c2str PRIVATE
+    "${TINYCC_INC_DIR}"
+    "${TINYCC_DIR}"
+)
+target_compile_definitions(tinycc_c2str PRIVATE
+    C2STR=1
+    ${TINYCC_TARGET_DEFS}
+)
+if(NOT MSVC)
+    target_compile_options(tinycc_c2str PRIVATE -w)
+endif()
+
+set(TCCDEFS_GENERATED "${TINYCC_INC_DIR}/tccdefs_.h")
 add_custom_command(
-    OUTPUT "${TINYCC_LIB}"
-    COMMAND "${TINYCC_MAKE}" -j libtcc.a
-    WORKING_DIRECTORY "${TINYCC_BUILD}"
-    DEPENDS "${TINYCC_BUILD}/config.mak"
+    OUTPUT "${TCCDEFS_GENERATED}"
+    COMMAND tinycc_c2str "${TINYCC_DIR}/include/tccdefs.h" "${TCCDEFS_GENERATED}"
+    DEPENDS tinycc_c2str "${TINYCC_DIR}/include/tccdefs.h"
     VERBATIM
 )
 
-add_custom_target(tinycc_build DEPENDS "${TINYCC_LIB}")
-
-add_library(tinycc STATIC IMPORTED GLOBAL)
-set_target_properties(tinycc PROPERTIES
-    IMPORTED_LOCATION "${TINYCC_LIB}"
+add_library(tinycc STATIC
+    "${TINYCC_DIR}/libtcc.c"
+    "${TCCDEFS_GENERATED}"
 )
 
-configure_file(
-    "${TINYCC_SOURCE}/libtcc.h"
-    "${TINYCC_BUILD}/libtcc.h"
-    COPYONLY
+target_include_directories(tinycc
+    PUBLIC "${TINYCC_INC_DIR}"
+    PRIVATE "${TINYCC_DIR}"
 )
+
+target_compile_definitions(tinycc PRIVATE
+    ONE_SOURCE=1
+    ${TINYCC_TARGET_DEFS}
+)
+
+if(NOT MSVC)
+    target_compile_options(tinycc PRIVATE -w)
+endif()
 
 # core library
 add_library(veksel_core
@@ -133,19 +163,16 @@ add_library(veksel_core
     "${SRC_DIR}/Builtins.cpp"
 )
 
-add_dependencies(veksel_core tinycc_build)
-
 target_include_directories(veksel_core
     PUBLIC "${SRC_DIR}"
-    PRIVATE "${TINYCC_BUILD}"
+    PRIVATE "${TINYCC_INC_DIR}"
 )
 
 target_link_libraries(veksel_core
-    PUBLIC
-        portaudio
+    PUBLIC portaudio
+    PRIVATE
         tinycc
         ${CMAKE_DL_LIBS}
-    PRIVATE
         Threads::Threads
 )
 
