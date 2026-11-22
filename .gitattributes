@@ -1,2 +1,2 @@
 third_party/** linguist-vendored
-*.h linguist-language=C++
+src/*.h linguist-language=C++
