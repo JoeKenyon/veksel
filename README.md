@@ -1,4 +1,6 @@
-[![CI (macOS)](https://github.com/JoeKenyon/veksel/actions/workflows/main.yml/badge.svg)](https://github.com/JoeKenyon/veksel/actions/workflows/main.yml)
+[![macOS](https://github.com/JoeKenyon/veksel/actions/workflows/macos.yml/badge.svg)](https://github.com/JoeKenyon/veksel/actions/workflows/macos.yml)
+[![Linux](https://github.com/JoeKenyon/veksel/actions/workflows/linux.yml/badge.svg)](https://github.com/JoeKenyon/veksel/actions/workflows/linux.yml)
+
 # Veksel
 
 *Named after **Wechsel** (German for "change")*
